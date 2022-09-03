@@ -1,9 +1,14 @@
+from ast import Num
 import numpy as np
 from sge.parameters import params
 import json
 import os
 
-
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 def evolution_progress(generation, pop, best, gram):
     fitness_samples = [i['fitness'] for i in pop]
@@ -19,7 +24,7 @@ def evolution_progress(generation, pop, best, gram):
     folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
     if not os.path.exists(folder):
         os.makedirs(folder,  exist_ok=True)
-    open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save))
+    open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
 
 def save_progress_to_file(data):
