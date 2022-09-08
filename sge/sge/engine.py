@@ -105,8 +105,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
         population.sort(key=lambda x: x['fitness'])
         # best individual overall
-        best = copy.deepcopy(population[0])
-
+        # best individual overall
+        if not best:
+            best = copy.deepcopy(population[0])
+        elif population[0]['fitness'] <= best['fitness']:
+            best = copy.deepcopy(population[0])
+     
         if not flag:
             update_probs(best, params['LEARNING_FACTOR'])
         else:
