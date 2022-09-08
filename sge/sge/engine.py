@@ -44,7 +44,7 @@ def setup(parameters_file_path = None):
     set_parameters(sys.argv[1:])
     if params['SEED'] is None:
         params['SEED'] = int(datetime.now().microsecond)
-    params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
+    params['EXPERIMENT_NAME'] += "/" + str(params['PROB_MUTATION_GRAMMAR'] * 100) + "/" + str(params['NORMAL_DIST_SD'])
 
     logger.prepare_dumps()
     random.seed(params['SEED'])
