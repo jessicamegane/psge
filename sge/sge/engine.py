@@ -92,10 +92,33 @@ def update_probs(best, lf):
     # update non_recursive options
     grammar.compute_non_recursive_options()
 
+
+def mutationGrammar():
+    gram = grammar.get_pcfg()
+    mask = copy.deepcopy(grammar.get_mask())
+    rows, columns = gram.shape
+    for i in range(rows):
+        if np.count_nonzero(mask[i,:]) <= 1:
+            continue
+        for j in range(columns):
+            if not mask[i,j]:
+                continue
+            # mutation based on normal distribution
+            if np.random.uniform() < params['PROB_MUTATION_GRAMMAR']:
+                gauss = np.random.normal(0.0,params['NORMAL_DIST_SD'])
+                diff = (gauss / (np.count_nonzero(mask[i,:]) - 1))
+
+                gram[i,j] += gauss
+                mask[i,j] = False
+                gram[i,mask[i,:]] -= diff
+                gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
+                break
+    # update non_recursive options
+    grammar.compute_non_recursive_options()
+
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
     population = list(make_initial_population())
-    flag = False    # alternate False - best overall
     best = None
     it = 0
     for i in tqdm(population):
@@ -104,23 +127,17 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     while it <= params['GENERATIONS']:        
 
         population.sort(key=lambda x: x['fitness'])
+        
         # best individual overall
-        best = copy.deepcopy(population[0])
-
-        if not flag:
-            update_probs(best, params['LEARNING_FACTOR'])
-        else:
-            update_probs(best_gen, params['LEARNING_FACTOR'])
-        flag = not flag
-
-        if params['ADAPTIVE']:
-            params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
-
+        if not best:
+            best = copy.deepcopy(population[0])
+        elif population[0]['fitness'] <= best['fitness']:
+            best = copy.deepcopy(population[0])
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
 
-        new_population = []
-        while len(new_population) < params['POPSIZE'] - params['ELITISM']:
+        new_population = population[:params['ELITISM']]
+        while len(new_population) < params['POPSIZE']:
             if random.random() < params['PROB_CROSSOVER']:
                 p1 = tournament(population, params['TSIZE'])
                 p2 = tournament(population, params['TSIZE'])
@@ -130,15 +147,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             ni = mutate(ni, params['PROB_MUTATION'])
             new_population.append(ni)
 
+        # Grammar mutation
+        mutationGrammar()
+
         for i in tqdm(new_population):
             evaluate(i, evaluation_function)
         new_population.sort(key=lambda x: x['fitness'])
-        # best individual from the current generation
-        best_gen = copy.deepcopy(new_population[0])
-
-        for i in tqdm(population[:params['ELITISM']]):
-            evaluate(i, evaluation_function)
-        new_population += population[:params['ELITISM']]
 
         population = new_population
         it += 1
