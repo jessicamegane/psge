@@ -24,6 +24,8 @@ params = {'PARAMETERS': None,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE': False,
           'ADAPTIVE_INCREMENT': 0.0001,
+          'PROB_MUTATION_GRAMMAR': 0.05,
+          'NORMAL_DIST_SD': 0.5,
           }
 
 
@@ -117,6 +119,14 @@ def set_parameters(arguments):
                         dest='MAX_TREE_DEPTH',
                         type=int,
                         help='Specify the initialisation tree depth')
+    parser.add_argument('--prob_mutation_grammar',
+                        dest='PROB_MUTATION_GRAMMAR',
+                        type=float,
+                        help='Specifies the probability of occurring a mutation in the individual grammar')
+    parser.add_argument('--normal_dist_sd',
+                        dest='NORMAL_DIST_SD',
+                        type=float,
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution')
 
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)
