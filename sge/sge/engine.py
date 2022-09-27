@@ -117,7 +117,7 @@ def mutationGrammar():
     grammar.compute_non_recursive_options()
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
-    setup(parameters_file_path=parameters_file)
+    # setup(parameters_file_path=parameters_file)
     population = list(make_initial_population())
     best = None
     it = 0
