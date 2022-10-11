@@ -24,6 +24,9 @@ params = {'PARAMETERS': None,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE': False,
           'ADAPTIVE_INCREMENT': 0.0001,
+          'PROB_MUTATION_PROBS': 0.3,
+          'GAUSS_SD': 0.01,
+          'MUTATE_GRAMMAR': True
           }
 
 

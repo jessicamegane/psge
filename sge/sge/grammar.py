@@ -22,6 +22,7 @@ class Grammar:
         self.start_rule = None
         self.max_depth = None
         self.max_init_depth = None
+        self.mutation_prob = []
         self.max_number_prod_rules = 0
         self.pcfg = None
         self.pcfg_mask = None
@@ -96,8 +97,11 @@ class Grammar:
                 self.pcfg = np.array(json.load(f))
         else:
             self.generate_uniform_pcfg()
+        self.mutation_prob = [0.1] * len(self.grammar.keys())
         self.compute_non_recursive_options()
 
+    def get_mutation_prob(self):
+        return self.mutation_prob
 
     def create_counter(self):
         self.counter = dict.fromkeys(self.grammar.keys(),[])
@@ -346,6 +350,7 @@ get_index_of_non_terminal = _inst.get_index_of_non_terminal
 ordered_non_terminals = _inst.ordered_non_terminals
 max_init_depth = _inst.get_max_init_depth
 python_filter = _inst.python_filter
+get_mutation_prob = _inst.get_mutation_prob
 
 if __name__ == "__main__":
     np.random.seed(42)

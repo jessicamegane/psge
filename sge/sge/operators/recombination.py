@@ -13,6 +13,8 @@ def crossover(p1, p2):
         else:
             genotype.append(p2['genotype'][index][:])
     mapping_values = [0] * gen_size
+    mutation_prob = p1['mutation_prob'] if p1['fitness'] < p2['fitness'] else p2['mutation_prob']    
+
     # compute nem individual
     _, tree_depth = grammar.mapping(genotype, mapping_values)
-    return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth}
+    return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'mutation_prob': mutation_prob}

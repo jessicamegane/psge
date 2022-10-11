@@ -6,7 +6,7 @@ from tqdm import tqdm
 import copy
 import numpy as np
 from sge.operators.recombination import crossover
-from sge.operators.mutation import mutate
+from sge.operators.mutation import mutate, mutate_level
 from sge.operators.selection import tournament
 from sge.parameters import (
     params,
@@ -18,7 +18,7 @@ from sge.parameters import (
 def generate_random_individual():
     genotype = [[] for _ in grammar.get_non_terminals()]
     tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
-    return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
+    return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_prob': grammar.get_mutation_prob()}
 
 
 def make_initial_population():
@@ -91,6 +91,21 @@ def update_probs(best, lf):
     # update non_recursive options
     grammar.compute_non_recursive_options()
 
+
+
+def mutation_prob_mutation(ind):
+    gram = ind['mutation_prob']
+    new_p = []
+    for p in gram:
+        if np.random.uniform() < params['PROB_MUTATION_PROBS']:
+            gauss = np.random.normal(0.0,params['GAUSS_SD'])
+            # TODO: no futuro criar bounds
+            p = max(p+gauss,0)
+            p = min(p,1)
+        new_p.append(p)
+    ind['mutation_prob'] = new_p
+    return ind
+
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
     population = list(make_initial_population())
@@ -129,7 +144,10 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 ni = crossover(p1, p2)
             else:
                 ni = tournament(population, params['TSIZE'])
-            ni = mutate(ni, params['PROB_MUTATION'])
+            ni = mutation_prob_mutation(ni)
+            ni = mutate_level(ni)
+
+            # ni = mutate(ni, params['PROB_MUTATION'])
             new_population.append(ni)
 
         for i in tqdm(new_population):
