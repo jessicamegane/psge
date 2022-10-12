@@ -92,30 +92,6 @@ def update_probs(best, lf):
     # update non_recursive options
     grammar.compute_non_recursive_options()
 
-
-def mutationGrammar():
-    gram = grammar.get_pcfg()
-    mask = copy.deepcopy(grammar.get_mask())
-    rows, columns = gram.shape
-    for i in range(rows):
-        if np.count_nonzero(mask[i,:]) <= 1:
-            continue
-        for j in range(columns):
-            if not mask[i,j]:
-                continue
-            # mutation based on normal distribution
-            if np.random.uniform() < params['PROB_MUTATION_GRAMMAR']:
-                gauss = np.random.normal(0.0,params['NORMAL_DIST_SD'])
-                diff = (gauss / (np.count_nonzero(mask[i,:]) - 1))
-
-                gram[i,j] += gauss
-                mask[i,j] = False
-                gram[i,mask[i,:]] -= diff
-                gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
-                break
-    # update non_recursive options
-    grammar.compute_non_recursive_options()
-
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     # setup(parameters_file_path=parameters_file)
     population = list(make_initial_population())
@@ -134,6 +110,16 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
      
+        if not flag:
+            update_probs(best, params['LEARNING_FACTOR'])
+        else:
+            update_probs(best_gen, params['LEARNING_FACTOR'])
+        flag = not flag
+
+        if params['ADAPTIVE']:
+            params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
+
+     
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
 
         new_population = population[:params['ELITISM']]
@@ -147,8 +133,6 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             ni = mutate(ni, params['PROB_MUTATION'])
             new_population.append(ni)
 
-        # Grammar mutation
-        mutationGrammar()
 
         for i in tqdm(new_population):
             evaluate(i, evaluation_function, it)
