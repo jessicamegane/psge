@@ -27,10 +27,10 @@ def make_initial_population():
         yield generate_random_individual()
 
 
-def evaluate(ind, eval_func):
+def evaluate(ind, eval_func, gen):
     mapping_values = [0 for _ in ind['genotype']]
     phen, tree_depth = grammar.mapping(ind['genotype'], mapping_values)
-    quality, other_info = eval_func.evaluate(phen)
+    quality, other_info = eval_func.evaluate(phen, gen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
@@ -123,10 +123,10 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     it = 0
     for i in tqdm(population):
         if i['fitness'] is None:
-            evaluate(i, evaluation_function)
+            evaluate(i, evaluation_function, it)
     while it <= params['GENERATIONS']:        
 
-        population.sort(key=lambda x: x['fitness'])
+        population.sort(key=functools.cmp_to_key(lambda a, b: a['other_info']['n_nodes'] - b['other_info']['n_nodes'] if abs(a['fitness'] - b['fitness']) < 0.02 else a['fitness'] - b['fitness']))
         
         # best individual overall
         if not best:
@@ -151,7 +151,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         mutationGrammar()
 
         for i in tqdm(new_population):
-            evaluate(i, evaluation_function)
+            evaluate(i, evaluation_function, it)
         new_population.sort(key=lambda x: x['fitness'])
 
         population = new_population
