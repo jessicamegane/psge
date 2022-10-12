@@ -1,4 +1,3 @@
-import random
 import sys
 import sge.grammar as grammar
 import sge.logger as logger
@@ -47,7 +46,7 @@ def setup(parameters_file_path = None):
     params['EXPERIMENT_NAME'] += "/" + str(params['PROB_MUTATION_GRAMMAR'] * 100) + "/" + str(params['NORMAL_DIST_SD'])
 
     logger.prepare_dumps()
-    random.seed(params['SEED'])
+    np.random.seed(int(params['SEED']))
     grammar.set_path(params['GRAMMAR'])
     grammar.read_grammar()
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
@@ -124,7 +123,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
         new_population = population[:params['ELITISM']]
         while len(new_population) < params['POPSIZE']:
-            if random.random() < params['PROB_CROSSOVER']:
+            if np.random.uniform() < params['PROB_CROSSOVER']:
                 p1 = tournament(population, params['TSIZE'])
                 p2 = tournament(population, params['TSIZE'])
                 ni = crossover(p1, p2)

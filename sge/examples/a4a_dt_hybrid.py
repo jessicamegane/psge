@@ -3,7 +3,6 @@ Code from Francisco Miranda (Github @FMiranda97)
 """
 import math
 import os
-import random
 import sqlite3
 import sys
 
