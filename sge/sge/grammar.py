@@ -1,8 +1,9 @@
+from importlib.resources import path
 import re
+from threading import currentThread
 from sge.utilities import ordered_set
 import json
 import numpy as np
-
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
     NT = "NT"
@@ -27,6 +28,7 @@ class Grammar:
         self.pcfg_mask = None
         self.pcfg_path = None
         self.index_of_non_terminal = {}
+        self.shortest_path = {}
 
     def set_path(self, grammar_path):
         self.grammar_file = grammar_path
@@ -97,7 +99,43 @@ class Grammar:
         else:
             self.generate_uniform_pcfg()
         self.compute_non_recursive_options()
+        self.find_shortest_path()
+        input()
 
+
+    def find_shortest_path(self):
+        for nt in self.grammar.keys():
+            depth = self.minimum_path_calc((nt,'NT'))
+            
+    def minimum_path_calc(self, current_symbol):
+        if current_symbol[1] == self.T:
+            return 0
+        else:
+            for derivation_option in self.grammar[current_symbol[0]]:
+                max_depth = 0
+                if current_symbol not in derivation_option:
+                    for symbol in derivation_option:
+
+                        depth = self.minimum_path_calc(symbol)
+                        depth += 1
+                        if depth > max_depth:
+                            max_depth = depth
+
+                    if current_symbol not in self.shortest_path:
+                        self.shortest_path[current_symbol] = [max_depth]
+                        self.shortest_path[current_symbol].append(derivation_option)
+                    else:
+                        if max_depth < self.shortest_path[current_symbol][0]:
+                            self.shortest_path[current_symbol] = [max_depth]
+                            if derivation_option not in self.shortest_path[current_symbol]:
+                                self.shortest_path[current_symbol].append(derivation_option)
+                        if max_depth == self.shortest_path[current_symbol][0]:
+                            if derivation_option not in self.shortest_path[current_symbol]:
+                                self.shortest_path[current_symbol].append(derivation_option)
+
+            return self.shortest_path[current_symbol][0]
+                    
+            
 
     def create_counter(self):
         self.counter = dict.fromkeys(self.grammar.keys(),[])
