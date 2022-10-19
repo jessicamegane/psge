@@ -89,7 +89,7 @@ def update_probs(best, lf):
 
         gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
     # update non_recursive options
-    grammar.compute_non_recursive_options()
+    # grammar.compute_non_recursive_options()
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
