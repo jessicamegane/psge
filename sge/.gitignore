@@ -4,3 +4,7 @@
 .pytest_cache
 *.pyc
 dumps/*
+mutation_level_extended/*
+mutation_level_old_gram/*
+mut_params/*
+mut_params_old_grammar/*

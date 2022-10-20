@@ -17,14 +17,14 @@ def evolution_progress(generation, pop, best, gram):
         print(data)
     save_progress_to_file(data)
     if generation % params['SAVE_STEP'] == 0:
-        save_step(generation, pop)
+        save_step(generation, pop, gram)
     # save probabilities
-    to_save = []
-    to_save.append({"grammar": gram})
-    folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
-    if not os.path.exists(folder):
-        os.makedirs(folder,  exist_ok=True)
-    open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
+    # to_save = []
+    # to_save.append({"grammar": gram})
+    # folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
+    # if not os.path.exists(folder):
+    #     os.makedirs(folder,  exist_ok=True)
+    # open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
 
 def save_progress_to_file(data):
@@ -32,10 +32,17 @@ def save_progress_to_file(data):
         f.write(data + '\n')
 
 
-def save_step(generation, population):
-    c = json.dumps(population)
-    open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
+# def save_step(generation, population):
+#     c = json.dumps(population)
+#     open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
 
+def save_step(generation, population, gram):
+    to_save = []
+    to_save.append({"grammar": gram.tolist()})
+    for i in population:
+        to_save.append({"fitness": i['fitness'], "mutation_prob": i["mutation_prob"]})
+
+    open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(json.dumps(to_save))
 
 def save_parameters():
     params_lower = dict((k.lower(), v) for k, v in params.items())
