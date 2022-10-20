@@ -90,7 +90,7 @@ def update_probs(best, lf):
 
         gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
     # update non_recursive options
-    grammar.compute_non_recursive_options()
+    # grammar.compute_non_recursive_options()
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     # setup(parameters_file_path=parameters_file)
@@ -123,8 +123,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
 
-        new_population = population[:params['ELITISM']]
-        while len(new_population) < params['POPSIZE']:
+        new_population = []
+        while len(new_population) < params['POPSIZE'] - params['ELITISM']:
             if np.random.uniform() < params['PROB_CROSSOVER']:
                 p1 = tournament(population, params['TSIZE'])
                 p2 = tournament(population, params['TSIZE'])
@@ -138,6 +138,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         for i in tqdm(new_population):
             evaluate(i, evaluation_function, it)
         new_population.sort(key=lambda x: x['fitness'])
+        # best individual from the current generation
+        best_gen = copy.deepcopy(new_population[0])
+
+        for i in tqdm(population[:params['ELITISM']]):
+            evaluate(i, evaluation_function)
+        new_population += population[:params['ELITISM']]
 
         population = new_population
         it += 1
