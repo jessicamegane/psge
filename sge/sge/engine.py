@@ -1,4 +1,5 @@
 import sys
+import functools
 import sge.grammar as grammar
 import sge.logger as logger
 from datetime import datetime
@@ -96,6 +97,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     population = list(make_initial_population())
     best = None
     it = 0
+    flag = False
     for i in tqdm(population):
         if i['fitness'] is None:
             evaluate(i, evaluation_function, it)
