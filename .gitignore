@@ -3,6 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+mut_params_extended/*
+mut_params_old_grammar/*
+mutation_level_extended/*
+mutation_level_old_gram/*
+params_problems_old_gram/*
+
 # User-specific files
 *.rsuser
 *.suo

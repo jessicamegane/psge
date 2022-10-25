@@ -144,10 +144,11 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 ni = crossover(p1, p2)
             else:
                 ni = tournament(population, params['TSIZE'])
-            ni = mutation_prob_mutation(ni)
-            ni = mutate_level(ni)
-
-            # ni = mutate(ni, params['PROB_MUTATION'])
+            if params['MUTATE_GRAMMAR']:
+                ni = mutation_prob_mutation(ni)
+                ni = mutate_level(ni)
+            else:
+                ni = mutate(ni, params['PROB_MUTATION'])
             new_population.append(ni)
 
         for i in tqdm(new_population):

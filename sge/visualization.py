@@ -251,6 +251,10 @@ def preprocess_data(path):
                 test_data_dic[gen] = [float(test.rstrip('\n'))]
         fp.close()
 
+    f = open(path + "data_" + str(GENERATIONS) + ".txt", "w")
+    for value in data_dic[str(GENERATIONS - 1)]:
+        f.write(str(value) + "\n")
+    f.close()
     return data_dic, test_data_dic
 
 def process_data(path, dic):
@@ -399,15 +403,13 @@ def plot_performance(problem, *paths):
 
 if __name__ == "__main__":
     plot_performance("pagie", 
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_0.75_gauss_sd_0.01/1.0/",
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_0.75_gauss_sd_0.0025/1.0/", 
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_0.75_gauss_sd_0.005/1.0/",
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.01/1.0/",
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
-    "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.005/1.0/")
+    "/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    "/home/jessica/psge/sge/mutation_level_extended/standard/1.0/",
+    "/home/jessica/psge/sge/mutation_level_old_gram/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    "/home/jessica/psge/sge/mutation_level_old_gram/standard/1.0/")
     # plot_probabilities_psge( 
-    # "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_0.75_gauss_sd_0.0025/1.0/",
-    # "/home/jessica/mut_level/psge/sge/grammars/regression_extended.pybnf")
+    # "/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    # "/home/jessica/psge/sge/grammars/regression_extended.pybnf")
     # plot_probabilities("/home/jessicamegane/Documents/hyb_rule_them_all/pagie/2.0/0.01/", "/home/jessicamegane/Documents/ge/grammars/regression.bnf")
     # plot_performance("pagie","/home/jessica/co-psge/sge/mutation_level/prob_mut_0.5_gauss_sd_0.005/5.0/0.5/","/home/jessica/co-psge/sge/mutation_level/prob_mut_0.75_gauss_sd_0.01/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_0.75_gauss_sd_0.005/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_1.0_gauss_sd_0.01/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_1.0_gauss_sd_0.005/5.0/0.5/")
     # plot_probabilities("/home/jessica/co-psge/sge/mutation_level/prob_mut_0.5_gauss_sd_0.005/5.0/0.5/","/home/jessica/co-psge/sge/grammars/regression.pybnf")
