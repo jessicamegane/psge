@@ -1,7 +1,6 @@
 from scipy.stats import mannwhitneyu
 import numpy as np
 
-GENERATIONS = 100
 
 def read_data(folder):
     l = []
@@ -101,20 +100,34 @@ def compare(algo1, algo2):
 
     print()
     
+GENERATIONS = 200
+
 
 if __name__ == "__main__":
     path = "testes_finais_tese/"
     # problems = ["quad", "pagie", "bostonhousing", "5parity", "11mult", "ant"]
     problems = ["quad", "pagie", "bostonhousing"]
 
-    print("Standard grammar")
-    psge_std = read_data("mutation_level_old_gram/standard/1.0/")
-    psge_mut_level = read_data("mutation_level_old_gram/prob_mut_1.0_gauss_sd_0.0025/1.0/")
+    std_psge_std = read_data("/home/jessica/mut_level/psge/sge/mutation_level_pagie/standard_mut10/1.0/")
+    std_psge_mut_level = read_data("/home/jessica/mut_level/psge/sge/mutation_level_pagie/prob_mut_1.0_gauss_sd_0.0025/1.0/")
+    psge_std = read_data("/home/jessica/mut_level/psge/sge/mutation_level_pagie_extended/standard_mut10/1.0/")
+    psge_mut_level = read_data( "/home/jessica/mut_level/psge/sge/mutation_level_pagie_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/")
+    
+    #std_psge_std = read_data("/home/jessica/mut_level/psge/sge/mutation_level_bh/standard_200gen_mut10/1.0/")
+    #std_psge_mut_level = read_data("/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.001/1.0/")
+    #psge_std = read_data("/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/standard_mut10/1.0/")
+    #psge_mut_level = read_data( "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.001/1.0/")
+    
+
+    print("SM+SG vs FM+SG")
+    compare(std_psge_std, std_psge_mut_level)
+    print("SM+EG vs FM+EG")
     compare(psge_std, psge_mut_level)
-    print("Extended grammar")
-    psge_std = read_data("mutation_level_extended/standard/1.0/")
-    psge_mut_level = read_data("mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/")
-    compare(psge_std, psge_mut_level)
+    print("SM+SG vs SM+EG")
+    compare(std_psge_std, psge_std)    
+    print("FM+SG vs FM+EG")
+    compare(std_psge_mut_level, psge_mut_level)
+
     
     # for problem in problems:
     #     print("----------",problem,"--------------")

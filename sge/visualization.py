@@ -21,8 +21,7 @@ NT_PATTERN = "(<.+?>)"
 RULE_SEPARATOR = "::="
 PRODUCTION_SEPARATOR = "|"
 
-GENERATIONS = 100
-RUNS = 30
+
 
 # TODO: automaticamente guardar grafico numa pasta ou apenas mostrar ?
 
@@ -220,13 +219,15 @@ def plot_probabilities_psge(path, grammar_path):
 def preprocess_data(path):
     data_dic = {}
     test_data_dic = {}
+    flag = False
     for folder_name in os.listdir(path):
         if 'run' not in folder_name:
             continue
         # filter number of runs
         if int(folder_name.split("_")[1]) > RUNS:
             continue
-        fp = open(path + folder_name + "/progress_report.csv","r") 
+        fp = open(path + folder_name + "/progress_report.csv","r")
+        min_test = 9999999  
         while True:
             line = fp.readline()
             if not line:
@@ -236,8 +237,9 @@ def preprocess_data(path):
                 gen, best, _ , _  = l
                 test = "-1"
             else:
+                flag = True
                 gen, best, _ , _ , test = l
-
+            min_test = min(float(test),min_test)
             # gen, best, _ , _ , test = line.split("\t")
             if int(gen) > GENERATIONS-1:
                 continue
@@ -245,16 +247,23 @@ def preprocess_data(path):
             gen = str(gen)
             if gen in data_dic:
                 data_dic[gen].append(float(best.rstrip('\n')))
-                test_data_dic[gen].append(float(test.rstrip('\n')))
+                test_data_dic[gen].append(min_test)
             else:
                 data_dic[gen] = [float(best.rstrip('\n'))]
-                test_data_dic[gen] = [float(test.rstrip('\n'))]
+                test_data_dic[gen] = [min_test]
         fp.close()
 
     f = open(path + "data_" + str(GENERATIONS) + ".txt", "w")
     for value in data_dic[str(GENERATIONS - 1)]:
         f.write(str(value) + "\n")
     f.close()
+
+    if flag:
+        f = open(path + "data_" + str(GENERATIONS) + "_test.txt", "w")
+        for value in test_data_dic[str(GENERATIONS - 1)]:
+            f.write(str(value) + "\n")
+        f.close()
+
     return data_dic, test_data_dic
 
 def process_data(path, dic):
@@ -357,11 +366,11 @@ def generate_plots(problem, methods_df):
     if problem == "pagie":
         plt.ylim(0.2,1.2)
         plt.ylabel('RRSE')
-    elif "quad" in problem:
-        plt.ylim(0, 1.5)
+    elif "quad" in problem or "quartic" in problem:
+        plt.ylim(0, 0.5)
         plt.ylabel('RRSE')
-    elif problem == "bostonhousing":
-        plt.ylim(0.6,1.2)
+    elif problem == "bostonhousing" or "bh" in problem:
+        plt.ylim(0.4,1.2)
         plt.ylabel('RRSE')
     elif problem == "5parity":
         plt.ylim(6,17)
@@ -378,9 +387,12 @@ def generate_plots(problem, methods_df):
     elif problem == "ppb":
         plt.ylabel('RRSE')
         plt.ylim(0,50)
+    elif problem == "v3":
+        plt.ylim(0.5,1.5)
+        plt.ylabel('RRSE')
 
     # plt.show()
-    plt.savefig("plots.png", bbox_inches='tight')
+    plt.savefig("plot_" + problem + ".png", bbox_inches='tight')
     plt.close()
 
 
@@ -388,7 +400,13 @@ def generate_plots(problem, methods_df):
 def plot_performance(problem, *paths):
     methods_df = []
     for path in paths:
+        print(path)
         data_dic, test_data_dic = preprocess_data(path)
+        # print("DATA DIC")
+        # print(data_dic)
+        # print("TEST DIC")
+        # print(test_data_dic)
+        # input()
         data_df = process_data(path, data_dic)
         # data_df_test = process_data(path, data_dic)
         methods_df.append([data_df, path])
@@ -398,18 +416,59 @@ def plot_performance(problem, *paths):
     #     methods_df.append([df, p + path])
     generate_plots(problem, methods_df)
     
+# Copy this for BH graphics
+boston_housing_all_results = [
+    # Baselines + Best
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/standard_200gen_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/standard_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.001/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.001/1.0/",
+    # Bad parameters
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.0025_200gen/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.005/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.01/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.005/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.01/1.0/",
+]
 
+# Copy this for PAGIE graphics
+pagie_all_results = [
+    # IMPORTANT
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie/standard_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie_extended/standard_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    # OTHERS
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie_extended/standard/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_pagie/standard/1.0/"
+]
 
+# Copy this for QUARTIC graphics
+quartic_all_results = [
+    # IMPORTANT
+    "/home/jessica/mut_level/psge/sge/mutation_level_quad/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_quad/standard_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_quad_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    # OTHERS
+    "/home/jessica/mut_level/psge/sge/mutation_level_quad/standard/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_quad_extended/standard/1.0/"
+]
+
+GENERATIONS = 200
+RUNS = 30
 
 if __name__ == "__main__":
-    plot_performance("pagie", 
-    "/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
-    "/home/jessica/psge/sge/mutation_level_extended/standard/1.0/",
-    "/home/jessica/psge/sge/mutation_level_old_gram/prob_mut_1.0_gauss_sd_0.0025/1.0/",
-    "/home/jessica/psge/sge/mutation_level_old_gram/standard/1.0/")
+    plot_performance("bostonhousing", 
+    # IMPORTANT
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/standard_200gen_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/standard_mut10/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh/prob_mut_1.0_gauss_sd_0.001/1.0/",
+    "/home/jessica/mut_level/psge/sge/mutation_level_bh_extended/prob_mut_1.0_gauss_sd_0.001/1.0/",
+    )
     # plot_probabilities_psge( 
-    # "/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
-    # "/home/jessica/psge/sge/grammars/regression_extended.pybnf")
+    # "/home/jessica/mut_level/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/",
+    # "/home/jessica/mut_level/psge/sge/grammars/regression_extended.pybnf")
     # plot_probabilities("/home/jessicamegane/Documents/hyb_rule_them_all/pagie/2.0/0.01/", "/home/jessicamegane/Documents/ge/grammars/regression.bnf")
     # plot_performance("pagie","/home/jessica/co-psge/sge/mutation_level/prob_mut_0.5_gauss_sd_0.005/5.0/0.5/","/home/jessica/co-psge/sge/mutation_level/prob_mut_0.75_gauss_sd_0.01/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_0.75_gauss_sd_0.005/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_1.0_gauss_sd_0.01/5.0/0.5/", "/home/jessica/co-psge/sge/mutation_level/prob_mut_1.0_gauss_sd_0.005/5.0/0.5/")
     # plot_probabilities("/home/jessica/co-psge/sge/mutation_level/prob_mut_0.5_gauss_sd_0.005/5.0/0.5/","/home/jessica/co-psge/sge/grammars/regression.pybnf")

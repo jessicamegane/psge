@@ -29,7 +29,7 @@ def analyse(paths, bases, epochs, grammar_sizes, label_lists, label_indexes):
     for path, base, grammar_size, labels, label_index in zip(paths, bases, grammar_sizes, label_lists, label_indexes):
         mut_prob = [] #Mutation probabilities per generation
         fit = []
-        setting = "best"
+        setting = "average"
         averages = []
         std = []
         max = []
@@ -92,10 +92,10 @@ def analyse(paths, bases, epochs, grammar_sizes, label_lists, label_indexes):
         for rule, label in zip(label_index, labels):
             print(f"Plotting {len([x for x in range(epochs)])}, {len(averages[rule])}")
             plt.plot([x for x in range(epochs)], averages[rule], label = label)
-            plt.fill_between(
-                [x for x in range(epochs)],
-                max[rule],
-                min[rule], alpha=0.2)
+            #plt.fill_between(
+            #    [x for x in range(epochs)],
+            #    max[rule],
+            #    min[rule], alpha=0.2)
 
         plt.title(f"{path}")
         plt.legend()	
@@ -111,25 +111,33 @@ def analyse(paths, bases, epochs, grammar_sizes, label_lists, label_indexes):
     #	print(f"[{config[0]},{config[1]}] {config[2]} {config[3]} {config[4]}")	
 
 labels_extended = [
-    #("start", 0), 
-    #("expr_vs_var", 1), 
-    #("expr", 2),
+    ("start", 0), 
+    ("expr_vs_var", 1), 
+    ("expr", 2),
     ("expr_op", 3),
-    #("op", 4),
-    #("pre_op", 5),
-    #("trig_op", 6),
+    ("op", 4),
+    ("pre_op", 5),
+    ("trig_op", 6),
     ("exp_log_op", 7),
-    #("var", 8),
-    #("var_x", 9),
+    ("var", 8),
+    ("var_x", 9),
+]
+labels_extended = [
+    ("start", 0), 
+    ("expr", 1),
+    ("op", 2),
+    ("pre_op", 3),
+    ("var", 4),
 ]
 analyse(
     paths=[
-        '/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/',
+        '/home/jessica/mut_level/psge/sge/mutation_level_v3/prob_mut_1.0_gauss_sd_0.0025/1.0/',
+        #'/home/jessica/psge/sge/mutation_level_extended/prob_mut_1.0_gauss_sd_0.0025/1.0/',
         #'/home/jessica/psge/sge/mutation_level_extended/standard/1.0/',
         #'/home/jessica/psge/sge/mutation_level_old_gram/prob_mut_1.0_gauss_sd_0.0025/1.0/',
         #'/home/jessica/psge/sge/mutation_level_old_gram/standard/1.0/',
 ],
-    bases=['psge', 'psge', 'psge', 'psge'],
+    bases=['psge'],
     epochs=101,
     grammar_sizes=[
         10,
