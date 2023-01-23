@@ -1,6 +1,4 @@
-from importlib.resources import path
 import re
-from threading import currentThread
 from sge.utilities import ordered_set
 import json
 import numpy as np
