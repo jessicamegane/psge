@@ -24,6 +24,7 @@ params = {'PARAMETERS': None,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE': False,
           'ADAPTIVE_INCREMENT': 0.0001,
+          'REMAP': True
           }
 
 
@@ -117,6 +118,10 @@ def set_parameters(arguments):
                         dest='MAX_TREE_DEPTH',
                         type=int,
                         help='Specify the initialisation tree depth')
+    parser.add_argument('--remap',
+                        dest='REMAP',
+                        type=bool,
+                        help='Specifies if the elitists are remapped each iteration')
 
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)

@@ -138,8 +138,9 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         # best individual from the current generation
         best_gen = copy.deepcopy(new_population[0])
 
-        for i in tqdm(population[:params['ELITISM']]):
-            evaluate(i, evaluation_function)
+        if params['REMAP']:
+            for i in tqdm(population[:params['ELITISM']]):
+                evaluate(i, evaluation_function)
         new_population += population[:params['ELITISM']]
 
         population = new_population
