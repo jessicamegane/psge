@@ -124,16 +124,13 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
      
-        if not flag:
-            update_probs(best, params['LEARNING_FACTOR'])
-        else:
-            update_probs(best_gen, params['LEARNING_FACTOR'])
-        flag = not flag
+        if not params['DELAY']:
+            if not flag:
+                update_probs(best, params['LEARNING_FACTOR'])
+            else:
+                update_probs(best_gen, params['LEARNING_FACTOR'])
+            flag = not flag
 
-        if params['ADAPTIVE']:
-            params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
-
-     
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
 
         new_population = []
@@ -161,6 +158,13 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             for i in tqdm(population[:params['ELITISM']]):
                 evaluate(i, evaluation_function)
         new_population += population[:params['ELITISM']]
+
+        if params['DELAY']:
+            if not flag:
+                update_probs(best, params['LEARNING_FACTOR'])
+            else:
+                update_probs(best_gen, params['LEARNING_FACTOR'])
+            flag = not flag
 
         population = new_population
         it += 1

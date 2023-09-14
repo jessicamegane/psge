@@ -27,7 +27,8 @@ params = {'PARAMETERS': None,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
           'MUTATE_GRAMMAR': True,
-          'REMAP': True
+          'REMAP': True,
+          'DELAY': False,
           }
 
 
@@ -125,7 +126,11 @@ def set_parameters(arguments):
                         dest='REMAP',
                         type=bool,
                         help='Specifies if the elitists are remapped each iteration')
-
+    parser.add_argument('--delay',
+                        dest='DELAY',
+                        type=bool,
+                        help='Specifies if the probabilities update is before or afetr evaluating')
+    
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)
 
