@@ -22,7 +22,7 @@ do
       for remap in "${REMAP[@]}"
       do
         echo "$dev $meta $gram"
-	      sbatch sending_trillions.sh $dev $meta $dealy $remap
+	      sbatch sending_trillions.sh $dev $meta $delay $remap
       done
     done
   done
