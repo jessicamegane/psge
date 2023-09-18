@@ -11,4 +11,4 @@ pip install numpy
 pip install PyYAML
 pip install tqdm
 
-python -m examples.symreg --experiment_name /project/p288427/megalomania/first_run --seed 71920 --parameters parameters/standard.yml --grammars/regression.pybnf --gauss_sd $1 --prob_mutation_probs $2 --mutate_grammar $3
+python -m examples.symreg --experiment_name /project/p288427/megalomania/first_run --seed 71920 --parameters parameters/standard.yml --grammars/regression.pybnf --gauss_sd $1 --prob_mutation_probs $2 --delay $3 --remap $4
