@@ -114,6 +114,14 @@ def set_parameters(arguments):
                         dest='ADAPTIVE_INCREMENT',
                         type=float,
                         help='Specifies the value used to add to the learning factor each generation')
+    parser.add_argument('--prob_mutation_probs',
+                        dest='PROB_MUTATION_PROBS',
+                        type=float,
+                        help='Specifies the probability of the proability of mutation changing for a given rule')
+    parser.add_argument('--gauss_sd',
+                        dest='GAUSS_SD',
+                        type=float,
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution')
     parser.add_argument('--min_tree_depth',
                         dest='MIN_TREE_DEPTH',
                         type=int,

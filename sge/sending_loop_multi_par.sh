@@ -21,7 +21,7 @@ do
     do
       for remap in "${REMAP[@]}"
       do
-        echo "$dev $meta $gram $remap"
+        echo "dev: $dev, meta: $meta, delay: $delay, remap: $remap"
 	      sbatch sending_trillions.sh $dev $meta $delay $remap
       done
     done
