@@ -132,11 +132,11 @@ def set_parameters(arguments):
                         help='Specify the initialisation tree depth')
     parser.add_argument('--remap',
                         dest='REMAP',
-                        type=bool,
+                        type=str,
                         help='Specifies if the elitists are remapped each iteration')
     parser.add_argument('--delay',
                         dest='DELAY',
-                        type=bool,
+                        type=str,
                         help='Specifies if the probabilities update is before or afetr evaluating')
     
     # Parse command line arguments using all above information.
