@@ -18,7 +18,7 @@ from sge.parameters import (
 def generate_random_individual():
     genotype = [[] for _ in grammar.get_non_terminals()]
     tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
-    return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_prob': grammar.get_mutation_prob()}
+    return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for x in genotype] }
 
 
 def make_initial_population():
@@ -44,7 +44,7 @@ def setup(parameters_file_path = None):
     if params['SEED'] is None:
         params['SEED'] = int(datetime.now().microsecond)
 
-    params['EXPERIMENT_NAME'] += "/" + "prob_mut_probs_" + str(params['PROB_MUTATION_PROBS']) +"/gauss_" + str(params['GAUSS_SD']) + "/delay_" + str(params['DELAY'])+ "/remap_" + str(params['REMAP']) 
+    params['EXPERIMENT_NAME'] += "/" + "prob_mut_probs_" + str(params['META_MUT_RATE']) +"/gauss_" + str(params['META_MUT_EFFECT']) + "/delay_" + str(params['DELAY'])+ "/remap_" + str(params['REMAP']) 
     logger.prepare_dumps()
     np.random.seed(int(params['SEED']))
     grammar.set_path(params['GRAMMAR'])
@@ -93,17 +93,17 @@ def update_probs(best, lf):
 
 
 
-def mutation_prob_mutation(ind):
-    gram = ind['mutation_prob']
+def meta_mutation(ind):
+    mutation_probabilities = ind['mutation_probs']
     new_p = []
-    for p in gram:
-        if np.random.uniform() < params['PROB_MUTATION_PROBS']:
-            gauss = np.random.normal(0.0,params['GAUSS_SD'])
+    for nt in mutation_probabilities:
+        if np.random.uniform() < params['META_MUT_RATE']:
+            gauss = np.random.normal(0.0,params['META_MUT_EFFECT'])
             # TODO: no futuro criar bounds
-            p = max(p+gauss,0)
-            p = min(p,1)
-        new_p.append(p)
-    ind['mutation_prob'] = new_p
+            nt = max(nt+gauss,0)
+            nt = min(nt,1)
+        new_p.append(nt)
+    ind['mutation_probs'] = new_p
     return ind
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
@@ -141,8 +141,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 ni = crossover(p1, p2)
             else:
                 ni = tournament(population, params['TSIZE'])
-            if params['MUTATE_GRAMMAR']:
-                ni = mutation_prob_mutation(ni)
+            if params['META_MUTATION']:
+                ni = meta_mutation(ni)
                 ni = mutate_level(ni)
             else:
                 ni = mutate(ni, params['PROB_MUTATION'])

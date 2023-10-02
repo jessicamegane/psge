@@ -97,12 +97,8 @@ class Grammar:
                 self.pcfg = np.array(json.load(f))
         else:
             self.generate_uniform_pcfg()
-        self.mutation_prob = [0.1] * len(self.grammar.keys())
         # self.compute_non_recursive_options()
         self.find_shortest_path()
-
-    def get_mutation_prob(self):
-        return self.mutation_prob
 
     def find_shortest_path(self):
         open_symbols = []
@@ -391,7 +387,6 @@ get_index_of_non_terminal = _inst.get_index_of_non_terminal
 ordered_non_terminals = _inst.ordered_non_terminals
 max_init_depth = _inst.get_max_init_depth
 python_filter = _inst.python_filter
-get_mutation_prob = _inst.get_mutation_prob
 
 if __name__ == "__main__":
     np.random.seed(42)
