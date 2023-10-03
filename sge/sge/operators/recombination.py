@@ -8,7 +8,7 @@ def crossover(p1, p2):
     mask = [numpy.random.uniform() for i in range(gen_size)]
     genotype = []
     mutation_prob = []
-    print(p1['mutation_probs'])
+    #print(p1['mutation_probs'])
     for index, prob in enumerate(mask):
         if prob < xover_p_value:
             genotype.append(p1['genotype'][index][:])
