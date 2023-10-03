@@ -40,7 +40,7 @@ def save_step(generation, population, gram, num_inds):
     to_save = []
     to_save.append({"grammar": gram.tolist()})
     evenly_spaced_indexes = np.round(np.linspace(0, len(population) - 1, num_inds + 1)).astype(int)[-num_inds:]#first index is best ind which is always recorded so we can exclude it
-    for i in population[evenly_spaced_indexes]:
+    for i in np.array(population)[evenly_spaced_indexes]:
         to_save.append({"fitness": i['fitness'], "phenotype": i['phenotype'], "mutation_probs": i["mutation_probs"]})
 
     open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(json.dumps(to_save))
