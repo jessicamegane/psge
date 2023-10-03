@@ -10,7 +10,7 @@
 DEV=("0.01" "0.001")
 META=("1.0" "0.1") 
 MUT_R=("0.1" "0.01")
-DELAY=("True" "False")
+DELAY=("False")
 REMAP=("True" "False")
 RUN=($(seq 0 1 30))
 
