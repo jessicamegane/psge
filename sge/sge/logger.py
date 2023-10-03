@@ -17,7 +17,7 @@ def evolution_progress(generation, pop, best, gram):
         print(data)
     save_progress_to_file(data)
     if generation % params['SAVE_STEP'] == 0:
-        save_step(generation, pop, gram)
+        save_step(generation, pop, gram, num_inds = 5)
     # save probabilities
     # to_save = []
     # to_save.append({"grammar": gram})
@@ -36,10 +36,11 @@ def save_progress_to_file(data):
 #     c = json.dumps(population)
 #     open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
 
-def save_step(generation, population, gram):
+def save_step(generation, population, gram, num_inds):
     to_save = []
     to_save.append({"grammar": gram.tolist()})
-    for i in population[:4]:
+    evenly_spaced_indexes = np.round(np.linspace(0, len(population) - 1, num_inds + 1)).astype(int)[-num_inds:]#first index is best ind which is always recorded so we can exclude it
+    for i in population[evenly_spaced_indexes]:
         to_save.append({"fitness": i['fitness'], "mutation_probs": i["mutation_probs"]})
 
     open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(json.dumps(to_save))

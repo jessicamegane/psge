@@ -11,6 +11,7 @@ DEV=("1.0" "0.1" "0.01" "0.001")
 META=("1.0" "0.1" "0.01" "0.001") 
 DELAY=("True" "False")
 REMAP=("True" "False")
+RUN=($(seq 0 1 30))
 
 # Nested loops to iterate over permutations
 for dev in "${DEV[@]}"
@@ -21,8 +22,11 @@ do
     do
       for remap in "${REMAP[@]}"
       do
-        echo "dev: $dev, meta: $meta, delay: $delay, remap: $remap"
-	      sbatch sending_trillions.sh $dev $meta $delay $remap
+        for run in "${RUN[@]}"
+        do
+          echo "dev: $dev, meta: $meta, delay: $delay, remap: $remap, run: $run"
+          #sbatch sending_trillions.sh $dev $meta $delay $remap $run
+        done
       done
     done
   done
