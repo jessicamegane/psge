@@ -24,9 +24,9 @@ params = {'PARAMETERS': None,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE': False,
           'ADAPTIVE_INCREMENT': 0.0001,
-          'PROB_MUTATION_PROBS': 0.3,
-          'GAUSS_SD': 0.01,
-          'MUTATE_GRAMMAR': True,
+          'META_MUT_RATE': 0.3,
+          'META_MUT_EFFECT': 0.01,
+          'META_MUTATION': True,
           'REMAP': True,
           'DELAY': False,
           }
@@ -115,13 +115,21 @@ def set_parameters(arguments):
                         type=float,
                         help='Specifies the value used to add to the learning factor each generation')
     parser.add_argument('--prob_mutation_probs',
-                        dest='PROB_MUTATION_PROBS',
+                        dest='META_MUT_RATE',
                         type=float,
-                        help='Specifies the probability of the proability of mutation changing for a given rule')
+                        help='Specifies the probability of the proability of mutation changing for a given rule (alias for --meta_mut_rate)')
+    parser.add_argument('--meta_mut_rate',
+                        dest='META_MUT_RATE',
+                        type=float,
+                        help='Specifies the probability of the proability of mutation changing for a given rule (alias for --prob_mutation_probs)')
     parser.add_argument('--gauss_sd',
-                        dest='GAUSS_SD',
+                        dest='META_MUT_EFFECT',
                         type=float,
-                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution')
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution (alias for --meta_mut_effect)')
+    parser.add_argument('--meta_mut_effect',
+                        dest='META_MUT_EFFECT',
+                        type=float,
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution (alias for --gauss_sd)')
     parser.add_argument('--min_tree_depth',
                         dest='MIN_TREE_DEPTH',
                         type=int,
