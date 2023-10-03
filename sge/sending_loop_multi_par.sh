@@ -7,8 +7,9 @@
 
 
 # Declare arrays 
-DEV=("1.0" "0.1" "0.01" "0.001")
-META=("1.0" "0.1" "0.01" "0.001") 
+DEV=("0.01" "0.001")
+META=("1.0" "0.1") 
+MUT_R=("0.1" "0.01")
 DELAY=("True" "False")
 REMAP=("True" "False")
 RUN=($(seq 0 1 30))
@@ -17,15 +18,18 @@ RUN=($(seq 0 1 30))
 for dev in "${DEV[@]}"
 do
   for meta in "${META[@]}"
-  do 
-    for delay in "${DELAY[@]}"
-    do
-      for remap in "${REMAP[@]}"
+  do
+    for mut in "${MUT_R[@]}"
+    do 
+      for delay in "${DELAY[@]}"
       do
-        for run in "${RUN[@]}"
+        for remap in "${REMAP[@]}"
         do
-          echo "dev: $dev, meta: $meta, delay: $delay, remap: $remap, run: $run"
-          #sbatch sending_trillions.sh $dev $meta $delay $remap $run
+          for run in "${RUN[@]}"
+          do
+            echo "dev: $dev, meta: $meta, start_mut_rate: $mut delay: $delay, remap: $remap, run: $run"
+            sbatch sending_trillions.sh $dev $meta $delay $remap $run $mut
+          done
         done
       done
     done
