@@ -13,7 +13,7 @@
       "program": "examples/symreg.py",
       "console": "integratedTerminal",
       "args": ["--experiment_name", "dumps/debug", "--parameters",
-       "parameters/standard.yml", "--grammars/regression.pybnf",
+       "parameters/standard.yml", "--grammar", "grammars/regression_pagie.pybnf ",
         "--gauss_sd", "0.1", "--prob_mutation_probs", "0.1",
          "--delay", "False", "--remap", "False"],
       "justMyCode": true,

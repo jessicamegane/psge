@@ -168,7 +168,11 @@ make_best_fitness_mid_t_test_boxplot = function(data){
   
   p = add_violin_box_plot(p)
   print(p)
-  
+  ggsave(paste("average_fitness_in_mid_generation_across_approachs.jpg", sep = ""))
+  ggsave(paste("average_fitness_in_mid_generation_across_approachs.pdf", sep = ""),
+         width = 14,
+         height = 7,
+         units ="cm")
   return(p)
 }
 
