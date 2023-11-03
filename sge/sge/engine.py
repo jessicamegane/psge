@@ -6,7 +6,7 @@ from tqdm import tqdm
 import copy
 import numpy as np
 from sge.operators.recombination import crossover
-from sge.operators.mutation import mutate
+from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
 from sge.parameters import (
     params,
@@ -18,7 +18,10 @@ from sge.parameters import (
 def generate_random_individual():
     genotype = [[] for _ in grammar.get_non_terminals()]
     tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
-    return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
+    if params['ADAPTIVE_MUTATION']:
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
+    else:
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
 
 
 def make_initial_population():
@@ -115,7 +118,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             update_probs(best_gen, params['LEARNING_FACTOR'])
         flag = not flag
 
-        if params['ADAPTIVE']:
+        if params['ADAPTIVE_LF']:
             params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
 
      
@@ -129,7 +132,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 ni = crossover(p1, p2)
             else:
                 ni = tournament(population, params['TSIZE'])
-            ni = mutate(ni, params['PROB_MUTATION'])
+            if params['ADAPTIVE_MUTATION']:
+                # if we want to use Adaptive Facilitated Mutation
+                ni = mutation_prob_mutation(ni)
+                ni = mutate_level(ni)
+            else:
+                ni = mutate(ni, params['PROB_MUTATION'])                
             new_population.append(ni)
 
         for i in tqdm(new_population):

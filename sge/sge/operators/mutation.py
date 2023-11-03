@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import sge.grammar as grammar
+from sge.parameters import params
 
 def mutate(p, pmutation):
     p = copy.deepcopy(p)
@@ -84,3 +85,19 @@ def mutate_level(p):
                   
                 p['genotype'][at_gene][position_to_mutate] = [expansion_possibility, codon]
     return p
+
+
+def mutation_prob_mutation(ind):
+    '''
+    Code to mutate the array that contains the probabilities of mutating each non-terminal (mutation_probs).
+    '''
+    mutation_probabilities = ind['mutation_probs']
+    new_p = []
+    for nt in mutation_probabilities:
+        if np.random.uniform() < params['PROB_MUTATION_PROBS']:
+            gauss = np.random.normal(0.0,params['GAUSS_SD'])
+            nt = max(nt+gauss,0)
+            nt = min(nt,1)
+        new_p.append(nt)
+    ind['mutation_probs'] = new_p
+    return ind
