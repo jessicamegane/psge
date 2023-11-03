@@ -61,10 +61,6 @@ def set_parameters(arguments):
                         dest='ELITISM',
                         type=int,
                         help='Specifies the total number of individuals that should survive in each generation.')
-    parser.add_argument('--seed',
-                        dest='SEED',
-                        type=float,
-                        help='Specifies the seed to be used by the random number generator.')
     parser.add_argument('--prob_crossover',
                         dest='PROB_CROSSOVER',
                         type=float,
@@ -77,34 +73,22 @@ def set_parameters(arguments):
                         dest='TSIZE',
                         type=int,
                         help='Specifies the tournament size for parent selection.')
+    parser.add_argument('--min_tree_depth',
+                        dest='MIN_TREE_DEPTH',
+                        type=int,
+                        help='Specify the initialisation tree depth.')
+    parser.add_argument('--max_tree_depth',
+                        dest='MAX_TREE_DEPTH',
+                        type=int,
+                        help='Specify the initialisation tree depth.')
     parser.add_argument('--grammar',
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
-    parser.add_argument('--experiment_name',
-                        dest='EXPERIMENT_NAME',
-                        type=str,
-                        help='Specifies the name of the folder where stats are going to be stored')
-    parser.add_argument('--run',
-                        dest='RUN',
-                        type=int,
-                        help='Specifies the run number.')
-    parser.add_argument('--include_genotype',
-                        dest='INCLUDE_GENOTYPE',
-                        type=bool,
-                        help='Specifies if the genotype is to be include in the log files.')
-    parser.add_argument('--save_step',
-                        dest='SAVE_STEP',
-                        type=int,
-                        help='Specifies how often stats are saved')
-    parser.add_argument('--verbose',
-                        dest='VERBOSE',
-                        type=bool,
-                        help='Turns on the verbose output of the program')
     parser.add_argument('--learning_factor',
                         dest='LEARNING_FACTOR',
                         type=float,
-                        help='Specifies the value of the learning factor used to update the probabilities')
+                        help='Specifies the value of the learning factor used to update the probabilities.')
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
                         type=bool,
@@ -112,19 +96,11 @@ def set_parameters(arguments):
     parser.add_argument('--adaptive_increment',
                         dest='ADAPTIVE_INCREMENT',
                         type=float,
-                        help='Specifies the value used to add to the learning factor each generation')
-    parser.add_argument('--min_tree_depth',
-                        dest='MIN_TREE_DEPTH',
-                        type=int,
-                        help='Specify the initialisation tree depth')
-    parser.add_argument('--max_tree_depth',
-                        dest='MAX_TREE_DEPTH',
-                        type=int,
-                        help='Specify the initialisation tree depth')
+                        help='Specifies the value used to add to the learning factor each generation.')
     parser.add_argument('--remap',
                         dest='REMAP',
                         type=bool,
-                        help='Specifies if the elitists are remapped each iteration')
+                        help='Specifies if the elitists are remapped each iteration.')
     parser.add_argument('--adaptive_mutation',
                         dest='ADAPTIVE_MUTATION',
                         type=bool,
@@ -137,6 +113,30 @@ def set_parameters(arguments):
                         dest='GAUSS_SD',
                         type=float,
                         help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true.')
+    parser.add_argument('--experiment_name',
+                        dest='EXPERIMENT_NAME',
+                        type=str,
+                        help='Specifies the name of the folder where stats are going to be stored.')
+    parser.add_argument('--run',
+                        dest='RUN',
+                        type=int,
+                        help='Specifies the run number.')
+    parser.add_argument('--seed',
+                        dest='SEED',
+                        type=float,
+                        help='Specifies the seed to be used by the random number generator.')
+    parser.add_argument('--include_genotype',
+                        dest='INCLUDE_GENOTYPE',
+                        type=bool,
+                        help='Specifies if the genotype is to be include in the log files.')
+    parser.add_argument('--save_step',
+                        dest='SAVE_STEP',
+                        type=int,
+                        help='Specifies how often stats are saved.')
+    parser.add_argument('--verbose',
+                        dest='VERBOSE',
+                        type=bool,
+                        help='Turns on the verbose output of the program.')
 
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)
