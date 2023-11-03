@@ -9,22 +9,25 @@ params = {'PARAMETERS': None,
           'POPSIZE': 10,
           'GENERATIONS': 10,
           'ELITISM': 10,                    # number of individuals that survive
-          'SEED': None,
           'PROB_CROSSOVER': 0.9,
           'PROB_MUTATION': 0.1,
           'TSIZE': 3,
+          'MIN_TREE_DEPTH': 6,
+          'MAX_TREE_DEPTH': 17,
           'GRAMMAR': 'grammars/regression.pybnf',
           'EXPERIMENT_NAME': "dumps/Test",
+          'SEED': None,
           'RUN': 1,
           'INCLUDE_GENOTYPE': True,
           'SAVE_STEP': 1,
           'VERBOSE': True,
-          'MIN_TREE_DEPTH': 6,
-          'MAX_TREE_DEPTH': 17,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE_LF': False,
           'ADAPTIVE_INCREMENT': 0.0001,
-          'REMAP': True
+          'REMAP': True,
+          'ADAPTIVE_MUTATION': False,
+          'PROB_MUTATION_PROBS': 0.3,
+          'GAUSS_SD': 0.01,
           }
 
 
@@ -122,6 +125,18 @@ def set_parameters(arguments):
                         dest='REMAP',
                         type=bool,
                         help='Specifies if the elitists are remapped each iteration')
+    parser.add_argument('--adaptive_mutation',
+                        dest='ADAPTIVE_MUTATION',
+                        type=bool,
+                        help='Specifies if we want to use the traditional mutation or the Adaptive Facilitated Mutation.')
+    parser.add_argument('--prob_mutation_probs',
+                        dest='PROB_MUTATION_PROBS',
+                        type=float,
+                        help='Specifies the probability of occurring a mutation in the prob mutation. Option only if --adaptive_mutation is set to true.')
+    parser.add_argument('--gauss_sd',
+                        dest='GAUSS_SD',
+                        type=float,
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true.')
 
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)
