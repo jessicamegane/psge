@@ -22,7 +22,7 @@ params = {'PARAMETERS': None,
           'MIN_TREE_DEPTH': 6,
           'MAX_TREE_DEPTH': 17,
           'LEARNING_FACTOR': 0.01,
-          'ADAPTIVE': False,
+          'ADAPTIVE_LF': False,
           'ADAPTIVE_INCREMENT': 0.0001,
           'REMAP': True
           }
@@ -102,10 +102,10 @@ def set_parameters(arguments):
                         dest='LEARNING_FACTOR',
                         type=float,
                         help='Specifies the value of the learning factor used to update the probabilities')
-    parser.add_argument('--adaptive',
-                        dest='ADAPTIVE',
+    parser.add_argument('--adaptive_lf',
+                        dest='ADAPTIVE_LF',
                         type=bool,
-                        help='Specifies if it is supposed to run the adaptive version of PSGE')
+                        help='Specifies if it is supposed to run the adaptive version of PSGE, in which the learning factor updated based on the ADAPTIVE_INCREMENT defined.')
     parser.add_argument('--adaptive_increment',
                         dest='ADAPTIVE_INCREMENT',
                         type=float,
