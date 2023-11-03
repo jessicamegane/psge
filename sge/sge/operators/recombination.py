@@ -20,7 +20,8 @@ def crossover(p1, p2):
     mapping_values = [0] * gen_size
     # compute nem individual
     _, tree_depth = grammar.mapping(genotype, mapping_values)
+    
     if params['ADAPTIVE_MUTATION']:
-        return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth}
-    else:
         return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'mutation_probs': mutation_probs}
+    else:
+        return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth}
