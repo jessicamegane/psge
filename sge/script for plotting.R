@@ -5,6 +5,7 @@ library(ggbeeswarm)
 library(ggplot2)
 library(ggpubr)
 library(patchwork)
+library(jsonlite)
 library(viridis)
 wd = "C:/Users/p288427/Desktop/megalomania/"
 setwd(wd)
@@ -21,15 +22,18 @@ read_and_save = function(dir){
     cat(path)
     filename = file.path(path,"progress_report.csv")
     
+    #extract the parameters of the run from its path
     properties <- read.table(text = path, sep = "/")[-1]
     colnames(properties) <- c("alg_type",sub('_[^_]*$', '', properties[-1]))
     properties[1, -1] <- sub('.*\\_', '', properties[-1])
+    #if there is no remap folder then add column with remap = False
     if(!"remap" %in% colnames(properties)){
       properties = properties %>% mutate(remap = "False")
     } 
     
     tmp_data = data.frame(matrix(ncol = 9, nrow = 0))
     
+    #if psge clean the corrupted newlines due to python saving matrices and reread as cleaned csv
     if (properties$alg_type == "psge") {
       
       
@@ -91,9 +95,9 @@ fitness_over_time_across_approachs <- function(data){
               linetype = "dotted",
               aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
     ) + 
-    + geom_smooth(
+      geom_smooth(
       aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay))
-    )
+    ) +
     facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay))) +
     theme(legend.position = "None")
   
@@ -104,8 +108,8 @@ fitness_over_time_across_approachs <- function(data){
   x = q / z + plot_annotation(title = "Average performance of solutions over evolution")
   print(x + plot_layout(guides = 'collect', design = layout))
   ggsave("fitness_over_time_per_run_across_approachs_details.pdf",
-         width = 14,
-         height = 10,
+         width = 34,
+         height = 15,
          units = "cm")
   return(x)
 }
@@ -184,7 +188,41 @@ data = read.csv2("data.csv", header = T, sep =",")
 
 fitness_over_time_across_approachs(data = data %>% subset(alg_type == "co-psge"))
 fitness_over_time_across_approachs(data = data %>% subset(alg_type == "psge"))
-make_best_fitness_t_test_boxplot_gen(data %>% subset(alg_type == "co-psge"), gen = 250)
-make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "co-psge"), gen = 500)
+
+
 make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "co-psge"), gen = 1000)
 make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "psge"), gen = 1000)
+
+
+
+a = data %>% subset(alg_type == "psge") %>% 
+  #Fixing fromatting of data saved from python for gram
+  mutate(gram = gsub("(\\d+)\\.(,|\\])","\\1\\2", #remove all trailing . after numbers (which are always followed by either a , or a ])
+                     gsub(", ]","]", #remove extra space before ] 
+                          gsub("\\s+",", ",  #remove all multiple white spaces and add commas
+                               gsub("s"," ",gram)))) #remove weird s artifact that appears instead of spaces
+         ) %>% 
+  #Reading from JSON format to R matrix for grammar prob
+  mutate(gram = map(gram, ~fromJSON(as.character(.x)))) %>% 
+  #Reading from JSON format to R matrix for mutation prob
+  mutate(mut_prob = map(mut_prob, ~fromJSON(as.character(.x)))) %>%
+  #unrolling the mut_prob matrix column into separate columns in tidy format
+  mutate(mut_prob = map(mut_prob, ~as.data.frame(.x) %>% rowid_to_column())) %>%
+  unnest(cols = (mut_prob)) %>%
+  rename(m_prob = .x, terminal = rowid)
+
+save(a, file = "data_gram_mut_probs.R")
+
+ggplot(a,
+       aes(x = gen, 
+           y = m_prob,
+           color = terminal
+           # color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
+           # fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
+           # linetype = terminal
+       )) +
+  geom_line(linewidth = 0.1,
+                       aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
+       ) +
+  facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay)), rows = vars(run)) +
+  theme(legend.position = "None")
