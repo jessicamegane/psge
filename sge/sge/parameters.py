@@ -21,6 +21,7 @@ params = {'PARAMETERS': None,
           'INCLUDE_GENOTYPE': True,
           'SAVE_STEP': 1,
           'VERBOSE': True,
+          'PROBS_UPDATE': 'standard',
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE_LF': False,
           'ADAPTIVE_INCREMENT': 0.0001,
@@ -85,6 +86,10 @@ def set_parameters(arguments):
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
+    parser.add_argument('--probs_update',
+                        dest='PROBS_UPDATE',
+                        type=str,
+                        help='Specifies the type of update of probabilities. Currtently is implemented \'standard\' and \'dependent\'.')    
     parser.add_argument('--learning_factor',
                         dest='LEARNING_FACTOR',
                         type=float,
