@@ -212,17 +212,21 @@ a = data %>% subset(alg_type == "psge") %>%
   rename(m_prob = .x, terminal = rowid)
 
 save(a, file = "data_gram_mut_probs.R")
-
-ggplot(a,
+load("data_gram_mut_probs.R")
+p = ggplot(a,
        aes(x = gen, 
            y = m_prob,
-           color = terminal
            # color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
            # fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
            # linetype = terminal
        )) +
-  geom_line(linewidth = 0.1,
-                       aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
-       ) +
-  facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay)), rows = vars(run)) +
+  geom_smooth() +
+  facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay)),
+             rows = vars(terminal)) +
+  scale_color_viridis(discrete = T) +
+  scale_fill_viridis(discrete = T) +
+  # ylim(c(0, 1))+
+  xlab("generations")+
+  ylab(paste("mut_prob", sep = "")) +
+  theme_bw()
   theme(legend.position = "None")
