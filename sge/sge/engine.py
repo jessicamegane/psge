@@ -8,6 +8,7 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
+from sge.operators.update import independent_update, dependent_update
 from sge.parameters import (
     params,
     set_parameters,
@@ -47,52 +48,14 @@ def setup(parameters_file_path = None):
     if params['SEED'] is None:
         params['SEED'] = int(datetime.now().microsecond)
     params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
-
     logger.prepare_dumps()
     np.random.seed(int(params['SEED']))
-    grammar.set_path(params['GRAMMAR'])
-    grammar.read_grammar()
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
+    grammar.set_path(params['GRAMMAR'])
+    grammar.read_grammar(params['PROBS_UPDATE'])
 
-def get_grammar_counter(genotype):
-    """
-    Function that counts how many times each production rule was expanded by the best individual
-    """
-    gram_counter = []
-    for nt in grammar.get_dict().keys():
-        expansion_list = genotype[grammar.get_non_terminals().index(nt)]
-        counter = [0] * len(grammar.get_dict()[nt])
-        for prod, _ in expansion_list:
-            counter[prod] += 1
-        gram_counter.append(counter)
 
-    return gram_counter
-
-def update_probs(best, lf):
-    gram_counter = get_grammar_counter(best['genotype'])
-    gram = grammar.get_pcfg()
-    rows, columns = gram.shape
-    mask = copy.deepcopy(grammar.get_mask())
-    for i in range(rows):
-        if np.count_nonzero(mask[i,:]) <= 1:
-            continue
-        total = sum(gram_counter[i])
-
-        for j in range(columns):
-            if not mask[i,j]:
-                continue
-            counter = gram_counter[i][j]
-            old_prob = gram[i][j]
-
-            if counter > 0:
-                gram[i][j] = min(old_prob + lf * counter / total, 1.0)
-            elif counter == 0:
-                gram[i][j] = max(old_prob - lf * old_prob, 0.0)
-
-        gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
-    # update non_recursive options
-    # grammar.compute_non_recursive_options()
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
@@ -112,14 +75,17 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
      
-        if not flag:
-            update_probs(best, params['LEARNING_FACTOR'])
-        else:
-            update_probs(best_gen, params['LEARNING_FACTOR'])
-        flag = not flag
+        if params['PROBS_UPDATE'] == 'standard':
+            if not flag:
+                independent_update(best, params['LEARNING_FACTOR'])
+            else:
+                independent_update(best_gen, params['LEARNING_FACTOR'])
+            flag = not flag
 
-        if params['ADAPTIVE_LF']:
-            params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
+            if params['ADAPTIVE_LF']:
+                params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
+        elif params['PROBS_UPDATE'] == 'dependency':
+            dependent_update(best)
 
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
