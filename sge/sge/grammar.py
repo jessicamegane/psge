@@ -46,7 +46,7 @@ class Grammar:
     def get_max_init_depth(self):
         return self.max_init_depth
 
-    def read_grammar(self):
+    def read_grammar(self, probs_update='standard'):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -89,13 +89,20 @@ class Grammar:
                         self.max_number_prod_rules = max(self.max_number_prod_rules, len(temp_productions))
                         if left_side not in self.grammar:
                             self.grammar[left_side] = temp_productions
-        
+
+        # TODO: remove this assignment here, think of a clever way
+        self.probs_update = probs_update
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
                 self.pcfg = np.array(json.load(f))
         else:
-            self.generate_uniform_pcfg()
+            if probs_update == 'standard':
+                self.generate_uniform_pcfg()
+            elif probs_update == 'dependent':
+                self.generate_dependent_pcfg()
+            else:
+                raise Exception("You need to specify a valid mechanism to update probabilities or provide a grammar.")
         # self.compute_non_recursive_options()
         self.find_shortest_path()
 
@@ -154,6 +161,27 @@ class Grammar:
         self.pcfg = array
         self.pcfg_mask = self.pcfg != 0
 
+    def generate_dependent_pcfg(self):
+        """
+        Creates PCFG with an array for each production rule, with the size of the maximum depth
+        that contains one probability for each depth.
+        """
+        array = np.empty(shape=(len(self.grammar.keys()),self.max_number_prod_rules),dtype=object)
+
+        for i, nt in enumerate(self.grammar):
+            number_probs = len(self.grammar[nt])
+            prob = 1.0 / number_probs
+            for j in range(number_probs):
+                array[i, j] = np.full(self.max_depth + 1, prob)
+            if nt not in self.index_of_non_terminal:
+                self.index_of_non_terminal[nt] = i
+        self.pcfg = array
+        self.pcfg_mask = self.pcfg != None
+        print(self.pcfg)
+        input()
+        print(self.pcfg_mask)
+        input()
+
     def generate_random_pcfg(self):
         pass
 
@@ -182,18 +210,27 @@ class Grammar:
             else:
                 non_recursive_elements += [options]
         return non_recursive_elements
+    
+    def get_probability(self, grammar, symbol, index, current_depth):
+        if self.probs_update == 'dependent':
+            return grammar[self.index_of_non_terminal[symbol],index][current_depth]
+        elif self.probs_update == 'standard':
+            return grammar[self.index_of_non_terminal[symbol],index]
+        else:
+            print("Flag for type of update does not exist.")
+            input()
 
     def recursive_individual_creation(self, genome, symbol, current_depth):
         codon = np.random.uniform()
-        if current_depth > self.max_init_depth:
+        if current_depth >= (self.max_init_depth - self.shortest_path[(symbol,'NT')][0]):
             prob_non_recursive = 0.0
             for rule in self.shortest_path[(symbol,'NT')][1:]:
                 index = self.grammar[symbol].index(rule)
-                prob_non_recursive += self.pcfg[self.index_of_non_terminal[symbol],index]
+                prob_non_recursive += self.get_probability(self.pcfg, symbol, index, current_depth)
             prob_aux = 0.0
             for rule in self.shortest_path[(symbol,'NT')][1:]:
                 index = self.grammar[symbol].index(rule)
-                new_prob = self.pcfg[self.index_of_non_terminal[symbol],index] / prob_non_recursive
+                new_prob = self.get_probability(self.pcfg, symbol, index, current_depth) / prob_non_recursive
                 prob_aux += new_prob
                 if codon <= round(prob_aux,3):
                     expansion_possibility = index
@@ -201,7 +238,7 @@ class Grammar:
         else:
             prob_aux = 0.0
             for index, option in enumerate(self.grammar[symbol]):
-                prob_aux += self.pcfg[self.index_of_non_terminal[symbol],index]
+                prob_aux += self.get_probability(self.pcfg, symbol, index, current_depth)
                 if codon <= round(prob_aux,3):
                     expansion_possibility = index
                     break
@@ -234,15 +271,15 @@ class Grammar:
             codon = np.random.uniform()
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
                 # Experiencia
-                if current_depth > self.max_depth:
+                if current_depth >= (self.max_depth - self.shortest_path[current_sym][0]):
                     prob_non_recursive = 0.0
                     for rule in self.shortest_path[current_sym][1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_non_recursive += self.get_probability(self.pcfg, current_sym[0], index, current_depth) 
                     prob_aux = 0.0
                     for rule in self.shortest_path[current_sym][1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[self.index_of_non_terminal[current_sym[0]],index] / prob_non_recursive
+                        new_prob = self.get_probability(self.pcfg, current_sym[0], index, current_depth) / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -250,7 +287,7 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index, option in enumerate(self.grammar[current_sym[0]]):
-                        prob_aux += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_aux += self.get_probability(self.pcfg, current_sym[0], index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -258,15 +295,15 @@ class Grammar:
             else:
                 # re-mapping with new probabilities                
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
-                if current_depth > self.max_depth:
+                if current_depth >= (self.max_depth - self.shortest_path[current_sym][0]):
                     prob_non_recursive = 0.0
-                    for rule in self.shortest_path[(current_sym[0],'NT')][1:]:
+                    for rule in self.shortest_path[current_sym][1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_non_recursive += self.get_probability(self.pcfg, current_sym[0], index, current_depth)
                     prob_aux = 0.0
-                    for rule in self.shortest_path[(current_sym[0],'NT')][1:]:
+                    for rule in self.shortest_path[current_sym][1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[self.index_of_non_terminal[current_sym[0]],index] / prob_non_recursive
+                        new_prob = self.get_probability(self.pcfg, current_sym[0], index, current_depth) / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -274,7 +311,7 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index, option in enumerate(self.grammar[current_sym[0]]):
-                        prob_aux += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_aux += self.get_probability(self.pcfg, current_sym[0], index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -381,6 +418,7 @@ get_non_recursive_options = _inst.get_non_recursive_options
 # compute_non_recursive_options = _inst.compute_non_recursive_options
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
+get_probability = _inst.get_probability
 get_mask = _inst.get_mask
 get_shortest_path = _inst.get_shortest_path
 get_index_of_non_terminal = _inst.get_index_of_non_terminal
