@@ -166,21 +166,18 @@ class Grammar:
         Creates PCFG with an array for each production rule, with the size of the maximum depth
         that contains one probability for each depth.
         """
-        array = np.empty(shape=(len(self.grammar.keys()),self.max_number_prod_rules),dtype=object)
+        array = np.empty(shape=(len(self.grammar.keys()),(self.max_depth + 1)),dtype=object)
 
         for i, nt in enumerate(self.grammar):
-            number_probs = len(self.grammar[nt])
-            prob = 1.0 / number_probs
-            for j in range(number_probs):
-                array[i, j] = np.full(self.max_depth + 1, prob)
+            number_prods = len(self.grammar[nt])
+            prob = 1.0 / number_prods
+            for j in range(self.max_depth+1):
+                array[i, j] = np.full(number_prods, prob)
             if nt not in self.index_of_non_terminal:
                 self.index_of_non_terminal[nt] = i
         self.pcfg = array
-        self.pcfg_mask = self.pcfg != None
+        # self.pcfg_mask = self.pcfg != None
         print(self.pcfg)
-        input()
-        print(self.pcfg_mask)
-        input()
 
     def generate_random_pcfg(self):
         pass
@@ -213,7 +210,7 @@ class Grammar:
     
     def get_probability(self, grammar, symbol, index, current_depth):
         if self.probs_update == 'dependent':
-            return grammar[self.index_of_non_terminal[symbol],index][current_depth]
+            return grammar[self.index_of_non_terminal[symbol],current_depth][index]
         elif self.probs_update == 'standard':
             return grammar[self.index_of_non_terminal[symbol],index]
         else:

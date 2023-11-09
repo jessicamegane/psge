@@ -3,13 +3,15 @@ import copy
 import numpy as np
 
 
-def get_grammar_counter(genotype):
+def get_grammar_counter(best):
     """
     Function that counts how many times each production rule was expanded by the best individual
     """
+    # TODO: fix this function with a stop when there is no extra mapping value - pode haver posicoes no genotipo 
+    # que ja nao saop usadas no mapeamento, e por isso nao deviam ser usadas para atyualizar as probabilidades
     gram_counter = []
     for nt in grammar.get_dict().keys():
-        expansion_list = genotype[grammar.get_non_terminals().index(nt)]
+        expansion_list = best['genotype'][grammar.get_non_terminals().index(nt)]
         counter = [0] * len(grammar.get_dict()[nt])
         for prod, _ in expansion_list:
             counter[prod] += 1
@@ -21,7 +23,7 @@ def independent_update(best, lf):
     """
     Update mechanism used in the PSGE paper.
     """
-    gram_counter = get_grammar_counter(best['genotype'])
+    gram_counter = get_grammar_counter(best)
     gram = grammar.get_pcfg()
     rows, columns = gram.shape
     mask = copy.deepcopy(grammar.get_mask())
@@ -51,4 +53,5 @@ def dependent_update(best):
     input()
     # TODO: dar fix na leitua da mask por causa do update das probabilidades
     print(best)
+
     

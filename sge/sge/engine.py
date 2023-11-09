@@ -84,7 +84,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
             if params['ADAPTIVE_LF']:
                 params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
-        elif params['PROBS_UPDATE'] == 'dependency':
+        elif params['PROBS_UPDATE'] == 'dependent':
             dependent_update(best)
 
      
