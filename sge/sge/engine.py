@@ -85,7 +85,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             if params['ADAPTIVE_LF']:
                 params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
         elif params['PROBS_UPDATE'] == 'dependent':
-            dependent_update(best)
+            dependent_update(best, params['LEARNING_FACTOR'])
 
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
@@ -119,4 +119,5 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
         population = new_population
         it += 1
+    print(grammar.get_pcfg())
 

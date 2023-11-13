@@ -4,3 +4,8 @@
 .pytest_cache
 *.pyc
 dumps/*
+dependent/
+standard/
+analyse.py
+quad_plot.png
+script.sh

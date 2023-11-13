@@ -15,20 +15,20 @@ def mutate(p, pmutation):
         for position_to_mutate in range(0, mapped):
             if np.random.uniform() < pmutation:
                 current_value = p['genotype'][at_gene][position_to_mutate]
+                current_depth = current_value[0]
                 # gaussian mutation
                 codon = np.random.normal(current_value[1], 0.5)
                 codon = min(codon,1.0)
                 codon = max(codon,0.0)
-                if p['tree_depth'] >= (grammar.get_max_depth() - grammar.get_shortest_path()[(nt,'NT')][0]):
+                if current_depth >= (grammar.get_max_depth() - grammar.get_shortest_path()[(nt,'NT')][0]):
                     prob_non_recursive = 0.0
                     for rule in grammar.get_shortest_path()[(nt,'NT')][1:]:
                         index = grammar.get_dict()[nt].index(rule)
-                        # TODO: review if we should use or not the tree depth of the individual here
-                        prob_non_recursive += grammar.get_probability(grammar.get_pcfg(),nt, index, p['tree_depth'])
+                        prob_non_recursive += grammar.get_probability(grammar.get_pcfg(),nt, index, current_depth)
                     prob_aux = 0.0
                     for rule in grammar.get_shortest_path()[(nt,'NT')][1:]:
                         index = grammar.get_dict()[nt].index(rule)
-                        new_prob = grammar.get_probability(grammar.get_pcfg(),nt, index, p['tree_depth']) / prob_non_recursive
+                        new_prob = grammar.get_probability(grammar.get_pcfg(),nt, index, current_depth) / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -36,12 +36,12 @@ def mutate(p, pmutation):
                 else:
                     prob_aux = 0.0
                     for index, option in enumerate(grammar.get_dict()[nt]):
-                        prob_aux += grammar.get_probability(grammar.get_pcfg(),nt, index, p['tree_depth'])
+                        prob_aux += grammar.get_probability(grammar.get_pcfg(),nt, index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
                   
-                p['genotype'][at_gene][position_to_mutate] = [expansion_possibility, codon]
+                p['genotype'][at_gene][position_to_mutate] = [expansion_possibility, codon, current_depth]
     return p
 
 def mutate_level(p):
