@@ -47,27 +47,27 @@ def independent_update(best, lf):
     # update non_recursive options
     # grammar.compute_non_recursive_options()
 
-def get_individual_number_expansions(individual):
+def get_individual_number_expansions(pop, n_best, counter):
     """
     Generates list , each position corresponds to one non-terminal.
     Each position has a dictionary which key is the depth, and value is a list in which the 
     index corresponds to the rule index and value at that position is the number of times it was expanded 
     """
-    genotype = individual['genotype']
-    counter = [{}] * len(grammar.get_non_terminals())
-    for nt_i, nt in enumerate(genotype):
-        dict = {} 
-        for index_rule, codon, depth in nt:
-            if depth not in dict:
-                dict[depth] = [0] * len(grammar.get_pcfg()[nt_i][0])
-            dict[depth][index_rule] += 1
-        counter[nt_i] = dict
+    for i in range(n_best):
+        genotype = pop[i]['genotype']
+        for nt_i, nt in enumerate(genotype):
+            dict = {} 
+            for index_rule, _, depth in nt:
+                if depth not in dict:
+                    dict[depth] = [0] * len(grammar.get_pcfg()[nt_i][0])
+                dict[depth][index_rule] += 1
+            counter[nt_i] = dict
     return counter
 
-def dependent_update(best, lf):
+def dependent_update(population, lf, n_best=10):
     gram = grammar.get_pcfg()
     rows, columns = gram.shape
-    counter = get_individual_number_expansions(best)
+    counter = get_individual_number_expansions(population, n_best, [{}] * len(grammar.get_non_terminals()))
     for nt_i in range(rows):
         for depth_i in range(columns):
             if len(gram[nt_i][depth_i]) <= 1:
@@ -80,9 +80,9 @@ def dependent_update(best, lf):
                 for prod_i in range(len(counter[nt_i][depth_i])):
                     if counter[nt_i][depth_i][prod_i] > 0:
                         # TODO: mudar funçao de update
-                        gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] + counter[nt_i][depth_i][prod_i] * lf
+                        gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] + counter[nt_i][depth_i][prod_i] * lf / sum(counter[nt_i][depth_i])
                     else:
-                        gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] - counter[nt_i][depth_i][prod_i] * lf
+                        gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] - gram[nt_i][depth_i][prod_i] * lf
 
             gram[nt_i][depth_i] = np.clip(gram[nt_i][depth_i], 0, np.infty) / np.sum(np.clip(gram[nt_i][depth_i], 0, np.infty))
             if round(np.sum(gram[nt_i][depth_i]),3) > 1:

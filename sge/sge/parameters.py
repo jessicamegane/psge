@@ -25,6 +25,7 @@ params = {'PARAMETERS': None,
           'LEARNING_FACTOR': 0.01,
           'ADAPTIVE_LF': False,
           'ADAPTIVE_INCREMENT': 0.0001,
+          'N_BEST': 1,
           'REMAP': True,
           'ADAPTIVE_MUTATION': False,
           'PROB_MUTATION_PROBS': 0.3,
@@ -102,6 +103,10 @@ def set_parameters(arguments):
                         dest='ADAPTIVE_INCREMENT',
                         type=float,
                         help='Specifies the value used to add to the learning factor each generation.')
+    parser.add_argument('--n_best',
+                        dest='N_BEST',
+                        type=int,
+                        help='Specifies the number of best individuals to consider for the update. Used only on the dependent update.')
     parser.add_argument('--remap',
                         dest='REMAP',
                         type=bool,
