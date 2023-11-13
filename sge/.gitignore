@@ -9,3 +9,5 @@ standard/
 analyse.py
 quad_plot.png
 script.sh
+dependent_old_50gen/
+standard_old_gen50/
