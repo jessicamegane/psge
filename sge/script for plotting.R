@@ -6,12 +6,15 @@ library(ggpubr)
 library(jsonlite)
 library(plyr)
 library(patchwork)
+library(purrr)
 library(kableExtra)
 library(readr)
 library(rstatix)
+library(tibble)
 library(tidyr)
 library(viridis)
-wd = "C:/Users/p288427/Desktop/megalomania/"
+# wd = "C:/Users/stefano/Desktop/megalomania/"
+wd = "C:/Users/stefano/Desktop/meg_sge/"
 setwd(wd)
 
 
@@ -27,8 +30,10 @@ read_and_save = function(dir){
     filename = file.path(path,"progress_report.csv")
     
     #extract the parameters of the run from its path
-    properties <- read.table(text = path, sep = "/")[-1]
+    properties <- read.table(text = path, sep = "/")[-1] #exclude the name of the file
+    #first colum is alg_type the others are called as waht preceds the last '_' in their value
     colnames(properties) <- c("alg_type",sub('_[^_]*$', '', properties[-1]))
+    #The value of the property is what follows the last '_'
     properties[1, -1] <- sub('.*\\_', '', properties[-1])
     #if there is no remap folder then add column with remap = False
     if(!"remap" %in% colnames(properties)){
@@ -52,17 +57,22 @@ read_and_save = function(dir){
                           header = F,
                           sep = ";")
       colnames(tmp_data)[1:9]=c("gen","best_fit","genot","phenot","mut_prob","gram","fit_mean","fit_sd","best_error_test")
-      
-      
-      
-    } else  {
+    } else if (properties$alg_type == "co-psge"){
       colnames(tmp_data)[1:9]=c("gen","best_fit","genot","phenot","mut_prob","gram","fit_mean","fit_sd","best_error_test")
       csv = read.csv2(filename, 
                       header = F,
                       col.names = c("gen","best_fit","fit_mean","fit_sd"),
                       sep = "\t")
       tmp_data = rbind.fill(tmp_data, csv)
-      
+    } else {
+      colnames(tmp_data)[1:9]=c("gen","best_fit","genot","phenot","mut_prob","gram","fit_mean","fit_sd","best_error_test")
+      csv = read.csv2(filename, 
+                      header = F,
+                      col.names = c("gen","best_fit","genot","phenot","mut_prob","fit_mean","fit_sd","best_error_test"),
+                      sep = ";") %>% 
+        #add the gram column to make it compatible with other data from psge or co-psge
+        add_column(gram = NA, .after = "mut_prob")
+      tmp_data = rbind.fill(tmp_data, csv)
     }
     
     data = rbind(data,cbind(tmp_data,properties))
@@ -73,6 +83,18 @@ read_and_save = function(dir){
   return(data)
 }
 
+#turn JSON format data into datafraem column in tidyformat for mut_probs
+extract_mut_probs = function(data){
+  return(
+  data %>% 
+  #Reading from JSON format to R matrix for mutation prob
+  mutate(mut_prob = map(mut_prob, ~fromJSON(as.character(.x)))) %>%
+    #unrolling the mut_prob matrix column into separate columns in tidy format
+    mutate(mut_prob = map(mut_prob, ~as.data.frame(.x) %>% rowid_to_column())) %>%
+    unnest(cols = (mut_prob)) %>%
+    dplyr::rename(m_prob = .x, terminal = rowid)
+  )
+}
 #transofrms data of psge so that mutation porbabilities can be read
 transform_psge_data_to_read_mut_probs = function(data){
   a = data %>% subset(alg_type == "psge") %>% 
@@ -84,12 +106,7 @@ transform_psge_data_to_read_mut_probs = function(data){
     ) %>% 
     #Reading from JSON format to R matrix for grammar prob
     mutate(gram = map(gram, ~fromJSON(as.character(.x)))) %>% 
-    #Reading from JSON format to R matrix for mutation prob
-    mutate(mut_prob = map(mut_prob, ~fromJSON(as.character(.x)))) %>%
-    #unrolling the mut_prob matrix column into separate columns in tidy format
-    mutate(mut_prob = map(mut_prob, ~as.data.frame(.x) %>% rowid_to_column())) %>%
-    unnest(cols = (mut_prob)) %>%
-    rename(m_prob = .x, terminal = rowid)
+    extract_mut_probs()
   
   return(a)
 }
@@ -100,8 +117,8 @@ fitness_over_time_across_approachs <- function(data){
   p <- ggplot(data %>%  filter(delay == "False"),
               aes(x = gen, 
                   y = best_fit,
-                  color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
-                  fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay)
+                  color = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay),
+                  fill = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)
               )
   ) +
     scale_color_viridis(discrete = T) +
@@ -112,18 +129,18 @@ fitness_over_time_across_approachs <- function(data){
     theme_bw()
   
   q = p + geom_smooth(
-    aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay))
+    aes(group = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay))
   )
   
   z = p + 
     geom_line(linewidth = 0.1,
               linetype = "dotted",
-              aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
+              aes(group = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
     ) + 
     geom_smooth(
-      aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay))
+      aes(group = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay))
     ) +
-    facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay))) +
+    facet_grid(cols = rev(vars(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay))) +
     theme(legend.position = "None")
   
   layout = 'AAAA
@@ -171,7 +188,7 @@ add_t_test = function(plot){
 ###wrangle avg fitness data of gen n
 wrangle_avg_fitness_gen = function(data, n_gen){
   return(data %>% 
-           group_by(start_mut_prob, prob_mut_probs, gauss, remap, delay, run) %>% 
+           group_by(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay, run) %>% 
            filter(gen == n_gen) %>% 
            dplyr::summarise(avg_fitness = mean(-1 * best_fit)) %>% 
            ungroup()
@@ -182,10 +199,10 @@ wrangle_avg_fitness_gen = function(data, n_gen){
 make_best_fitness_t_test_boxplot_gen = function(data, gen){
   
   b = wrangle_avg_fitness_gen(data, gen)
-  p <- b %>% ggplot(aes(x = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
+  p <- b %>% ggplot(aes(x = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay),
                         y = avg_fitness,
-                        fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
-                        color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay)
+                        fill = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay),
+                        color = interaction(alg_type, crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)
   )
   ) + 
     xlab("parameters combination")+
@@ -211,31 +228,31 @@ plot_mut_rates_terminals_compared_to_fit_over_time = function(a){
   best_fit = ggplot(a,
                     aes(x = gen, 
                         y = best_fit,
-                        color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
-                        fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay)#,
+                        color = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay),
+                        fill = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)#,
                         # linetype = terminal
                     )) 
   mut_p = ggplot(a,
                  aes(x = gen, 
                      y = m_prob,
-                     color = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay),
-                     fill = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay)#,
+                     color = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay),
+                     fill = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)#,
                      # linetype = terminal
                  )) +
     geom_smooth() +
-    facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay)),
+    facet_grid(cols = rev(vars(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)),
                rows = vars(terminal))
   
   q = best_fit + 
     geom_line(linewidth = 0.1,
               linetype = "dotted",
               aes(          
-                group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
+                group = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay, run))
     ) + 
     geom_smooth(
-      aes(group = interaction(start_mut_prob, prob_mut_probs, gauss, remap, delay))
+      aes(group = interaction(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay))
     ) +
-    facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay))) +
+    facet_grid(cols = rev(vars(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay))) +
     theme(legend.position = "None")+
     scale_color_viridis(discrete = T) +
     scale_fill_viridis(discrete = T) +
@@ -244,7 +261,7 @@ plot_mut_rates_terminals_compared_to_fit_over_time = function(a){
     theme_bw()
   
   z = mut_p +  
-    facet_grid(cols = rev(vars(start_mut_prob, prob_mut_probs, gauss, remap, delay)),
+    facet_grid(cols = rev(vars(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay)),
                rows = vars(terminal)) +
     scale_color_viridis(discrete = T) +
     scale_fill_viridis(discrete = T) +
@@ -269,7 +286,7 @@ plot_mut_rates_terminals_compared_to_fit_over_time = function(a){
 ###test for best fitness
 test_best_fitness = function(data){
   return(
-    setDT(data %>% filter(gen == max(gen)))[, approach := paste(start_mut_prob, prob_mut_probs, gauss, remap, delay, sep = "_")] %>% 
+    setDT(data %>% filter(gen == max(gen)))[, approach := paste(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay, sep = "_")] %>% 
       t_test(data = .,
              best_fit ~ approach,
              p.adjust.method = "BH")
@@ -279,7 +296,7 @@ test_best_fitness = function(data){
 ### Calculate effect size for best fitness
 effects_size_best_fitness = function(data){
   return(
-    setDT(data %>% filter(gen == max(gen)))[, approach := paste(start_mut_prob, prob_mut_probs, gauss, remap, delay, sep = "_")] %>% 
+    setDT(data %>% filter(gen == max(gen)))[, approach := paste(crossover_prob, start_mut_prob, prob_mut_probs, gauss, remap, delay, sep = "_")] %>% 
     cohens_d(.,
              best_fit~approach)
   )
@@ -331,23 +348,32 @@ produce_latex_table_effect_sizes = function(data){
 
 
 #use when need loading from raw data and not .csv
-# data = read_and_save(wd)
-# a = transform_psge_data_to_read_mut_probs(data)
-# save(a, file = "data_gram_mut_probs.R")
+data = setDT(read_and_save(wd))[,best_fit :=  as.numeric(best_fit)] %>% add_column(delay = "False")
+# a = setDT(extract_mut_probs(data))[,best_fit :=  as.numeric(best_fit)] %>% add_column(delay = "False")
+# # a = transform_psge_data_to_read_mut_probs(data)
+# save(a, file = "data_mut_probs.R")
 
-data = setDT(read.csv2("data.csv", header = T, sep =",")[-1])[,best_fit :=  as.numeric(best_fit)]
-load("data_gram_mut_probs.R")
+data = read.csv2("data.csv", header = T, sep =",")[-1]
+load("data_mut_probs.R")
 
-fitness_over_time_across_approachs(data = data %>% subset(alg_type == "co-psge"))
-fitness_over_time_across_approachs(data = data %>% subset(alg_type == "psge"))
+# fitness_over_time_across_approachs(data = data %>% subset(alg_type == "co-psge"))
+# fitness_over_time_across_approachs(data = data %>% subset(alg_type == "psge"))
+fitness_over_time_across_approachs(data = data %>%
+                                     subset(alg_type == "sge") %>%
+                                     subset(gen > 2))
 
 
-make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "co-psge"), gen = 1000)
-make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "psge"), gen = 1000)
+# make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "co-psge"), gen = 1000)
+# make_best_fitness_t_test_boxplot_gen(data = data %>% subset(alg_type == "psge"), gen = 1000)
+make_best_fitness_t_test_boxplot_gen(data = data 
+                                     %>% subset(alg_type == "sge")
+                                     , gen = 600)
 
+plot_mut_rates_terminals_compared_to_fit_over_time(a %>% subset(remap == "False") %>% subset(gen > 2))
 
-plot_mut_rates_terminals_compared_to_fit_over_time(a %>% subset(remap == "False") %>% mutate(best_fit = as.numeric(best_fit)))
+# produce_latex_table_p_values(data = data %>% filter(alg_type == "psge", delay == "False"))
+# produce_latex_table_effect_sizes(data = data %>% filter(alg_type == "psge", delay == "False"))
 
-produce_latex_table_p_values(data = data %>% filter(alg_type == "psge", delay == "False"))
-produce_latex_table_effect_sizes(data = data %>% filter(alg_type == "psge", delay == "False"))
+produce_latex_table_p_values(data = data %>% filter(alg_type == "sge"))
+produce_latex_table_effect_sizes(data = data %>% filter(alg_type == "sge"))
 
