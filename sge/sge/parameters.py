@@ -1,5 +1,6 @@
 import argparse
 import yaml
+from distutils.util import strtobool
 '''
 This was adapted from PonyGE2: https://github.com/PonyGE/PonyGE2
 Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Neill, M. PonyGE2: Grammatical Evolution in Python. arXiv preprint, arXiv:1703.08535, 2017.
@@ -97,7 +98,7 @@ def set_parameters(arguments):
                         help='Specifies the value of the learning factor used to update the probabilities.')
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
-                        type=bool,
+                        type=strtobool,
                         help='Specifies if it is supposed to run the adaptive version of PSGE, in which the learning factor updated based on the ADAPTIVE_INCREMENT defined.')
     parser.add_argument('--adaptive_increment',
                         dest='ADAPTIVE_INCREMENT',
@@ -109,11 +110,11 @@ def set_parameters(arguments):
                         help='Specifies the number of best individuals to consider for the update. Used only on the dependent update.')
     parser.add_argument('--remap',
                         dest='REMAP',
-                        type=bool,
+                        type=strtobool,
                         help='Specifies if the elitists are remapped each iteration.')
     parser.add_argument('--adaptive_mutation',
                         dest='ADAPTIVE_MUTATION',
-                        type=bool,
+                        type=strtobool,
                         help='Specifies if we want to use the traditional mutation or the Adaptive Facilitated Mutation.')
     parser.add_argument('--prob_mutation_probs',
                         dest='PROB_MUTATION_PROBS',
@@ -137,7 +138,7 @@ def set_parameters(arguments):
                         help='Specifies the seed to be used by the random number generator.')
     parser.add_argument('--include_genotype',
                         dest='INCLUDE_GENOTYPE',
-                        type=bool,
+                        type=strtobool,
                         help='Specifies if the genotype is to be include in the log files.')
     parser.add_argument('--save_step',
                         dest='SAVE_STEP',
@@ -145,7 +146,7 @@ def set_parameters(arguments):
                         help='Specifies how often stats are saved.')
     parser.add_argument('--verbose',
                         dest='VERBOSE',
-                        type=bool,
+                        type=strtobool,
                         help='Turns on the verbose output of the program.')
 
     # Parse command line arguments using all above information.
