@@ -12,19 +12,21 @@ class NumpyEncoder(json.JSONEncoder):
 
 def evolution_progress(generation, pop, best, gram):
     fitness_samples = [i['fitness'] for i in pop]
-    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
+    # data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
+    data = f"{generation};{best['fitness']};{np.nanmean(fitness_samples)};{np.nanstd(fitness_samples)};{best['other_info']['test_error']}"
+
     if params['VERBOSE']:
         print(data)
     save_progress_to_file(data)
-    if generation % params['SAVE_STEP'] == 0:
-        save_step(generation, pop)
     # save probabilities
     to_save = []
     to_save.append({"grammar": gram})
-    folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
-    if not os.path.exists(folder):
-        os.makedirs(folder,  exist_ok=True)
-    open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
+    if generation % params['SAVE_STEP'] == 0:
+        to_save = save_step(to_save, generation, pop)
+    else:
+        # save only best ind
+        to_save.append({"genotype": best['genotype'],"fitness": best['fitness']})
+    open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
 
 def save_progress_to_file(data):
@@ -32,10 +34,12 @@ def save_progress_to_file(data):
         f.write(data + '\n')
 
 
-def save_step(generation, population):
-    c = json.dumps(population)
-    open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
+def save_step(to_save, generation, population):
+    for i in population:
+        to_save.append({"genotype": i['genotype'],"fitness": i['fitness']})
 
+    # open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(json.dumps(to_save))
+    return to_save
 
 def save_parameters():
     params_lower = dict((k.lower(), v) for k, v in params.items())
