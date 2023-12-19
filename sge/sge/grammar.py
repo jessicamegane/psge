@@ -185,28 +185,30 @@ class Grammar:
 
     def recursive_individual_creation(self, genome, symbol, current_depth):
         codon = np.random.uniform()
+        nt_index = self.index_of_non_terminal[symbol]
         if current_depth > self.max_init_depth:
+            shortest_path = self.shortest_path[(symbol,'NT')]
             prob_non_recursive = 0.0
-            for rule in self.shortest_path[(symbol,'NT')][1:]:
+            for rule in shortest_path[1:]:
                 index = self.grammar[symbol].index(rule)
-                prob_non_recursive += self.pcfg[self.index_of_non_terminal[symbol],index]
+                prob_non_recursive += self.pcfg[nt_index,index]
             prob_aux = 0.0
-            for rule in self.shortest_path[(symbol,'NT')][1:]:
+            for rule in shortest_path[1:]:
                 index = self.grammar[symbol].index(rule)
-                new_prob = self.pcfg[self.index_of_non_terminal[symbol],index] / prob_non_recursive
+                new_prob = self.pcfg[nt_index,index] / prob_non_recursive
                 prob_aux += new_prob
                 if codon <= round(prob_aux,3):
                     expansion_possibility = index
                     break
         else:
             prob_aux = 0.0
-            for index, option in enumerate(self.grammar[symbol]):
-                prob_aux += self.pcfg[self.index_of_non_terminal[symbol],index]
+            for index in range(len(self.grammar[symbol])):
+                prob_aux += self.pcfg[nt_index,index]
                 if codon <= round(prob_aux,3):
                     expansion_possibility = index
                     break
 
-        genome[self.get_non_terminals().index(symbol)].append([expansion_possibility,codon])
+        genome[self.get_non_terminals().index(symbol)].append([expansion_possibility,codon,current_depth])
         expansion_symbols = self.grammar[symbol][expansion_possibility]
         depths = [current_depth]
         for sym in expansion_symbols:
@@ -221,7 +223,7 @@ class Grammar:
         max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
         output = "".join(output)
         if self.grammar_file.endswith("pybnf"):
-            output = self.python_filter(output)
+            output = self.python_filter(output, needs_python_filter)
         return output, max_depth
 
     def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output):
@@ -231,18 +233,19 @@ class Grammar:
         else:
             current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
             choices = self.grammar[current_sym[0]]
-            codon = np.random.uniform()
+            shortest_path = self.shortest_path[current_sym]
+            nt_index = self.index_of_non_terminal[current_sym[0]]
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
-                # Experiencia
+                codon = np.random.uniform()
                 if current_depth > self.max_depth:
                     prob_non_recursive = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_non_recursive += self.pcfg[nt_index,index]
                     prob_aux = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[self.index_of_non_terminal[current_sym[0]],index] / prob_non_recursive
+                        new_prob = self.pcfg[nt_index,index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -250,36 +253,36 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index, option in enumerate(self.grammar[current_sym[0]]):
-                        prob_aux += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_aux += self.pcfg[nt_index,index]
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
-                mapping_rules[current_sym_pos].append([expansion_possibility,codon])
+                mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
             else:
                 # re-mapping with new probabilities                
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
                 if current_depth > self.max_depth:
                     prob_non_recursive = 0.0
-                    for rule in self.shortest_path[(current_sym[0],'NT')][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                        prob_non_recursive += self.pcfg[nt_index,index]
                     prob_aux = 0.0
-                    for rule in self.shortest_path[(current_sym[0],'NT')][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[self.index_of_non_terminal[current_sym[0]],index] / prob_non_recursive
+                        new_prob = self.pcfg[nt_index,index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
                 else:
                     prob_aux = 0.0
-                    for index, option in enumerate(self.grammar[current_sym[0]]):
-                        prob_aux += self.pcfg[self.index_of_non_terminal[current_sym[0]],index]
+                    for index in range(len(self.grammar[current_sym[0]])):
+                        prob_aux += self.pcfg[nt_index,index]
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
             # update mapping rules com a updated expansion possibility
-            mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility, codon]
+            mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
@@ -315,7 +318,7 @@ class Grammar:
         return self.shortest_path
 
     @staticmethod
-    def python_filter(txt):
+    def python_filter(txt, needs_python_filter):
         """ Create correct python syntax.
         We use {: and :} as special open and close brackets, because
         it's not possible to specify indentation correctly in a BNF
@@ -325,21 +328,22 @@ class Grammar:
         txt = txt.replace("\l", "<")
         txt = txt.replace("\g", ">")
         txt = txt.replace("\eb", "|")
-        indent_level = 0
-        tmp = txt[:]
-        i = 0
-        while i < len(tmp):
-            tok = tmp[i:i+2]
-            if tok == "{:":
-                indent_level += 1
-            elif tok == ":}":
-                indent_level -= 1
-            tabstr = "\n" + "  " * indent_level
-            if tok == "{:" or tok == ":}" or tok == "\\n":
-                tmp = tmp.replace(tok, tabstr, 1)
-            i += 1
-            # Strip superfluous blank lines.
-            txt = "\n".join([line for line in tmp.split("\n") if line.strip() != ""])
+        if needs_python_filter:
+            indent_level = 0
+            tmp = txt[:]
+            i = 0
+            while i < len(tmp):
+                tok = tmp[i:i+2]
+                if tok == "{:":
+                    indent_level += 1
+                elif tok == ":}":
+                    indent_level -= 1
+                tabstr = "\n" + "  " * indent_level
+                if tok == "{:" or tok == ":}" or tok == "\\n":
+                    tmp = tmp.replace(tok, tabstr, 1)
+                i += 1
+                # Strip superfluous blank lines.
+                txt = "\n".join([line for line in tmp.split("\n") if line.strip() != ""])
         return txt
 
     def get_start_rule(self):
