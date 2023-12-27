@@ -130,11 +130,13 @@ class SymbolicRegression():
             # input()
             # input()
             #pred_error = np.sum(np.power(predicted - dataset[:, 0], 2))
-            pred_error = RMSELoss()(predicted, dataset[:, 2])
+            pred_error = RMSELoss()(predicted, dataset[:, -1])
+            if pred_error.isnan() or pred_error.isinf():
+                 pred_error = torch.tensor(self.__invalid_fitness, device=cur_dev)
             #print(pred_error)
             #input()
         except (OverflowError, ValueError) as e:
-            return self.__invalid_fitness
+            return torch.tensor(self.__invalid_fitness, device=cur_dev)
         #print(pred_error)
         return pred_error
 
