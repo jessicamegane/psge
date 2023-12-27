@@ -264,20 +264,21 @@ class Grammar:
         else:
             current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
             choices = self.grammar[current_sym[0]]
+            shortest_path = self.shortest_path[current_sym]
             codon = np.random.uniform()
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
                 # Experiencia
-                if current_depth >= (self.max_depth - self.shortest_path[current_sym][0]):
+                if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         prob_non_recursive += self.get_probability(self.pcfg, current_sym[0], index, current_depth) 
                     prob_aux = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0: 
                             # when the probability of choosing the symbol is 0
-                            new_prob = 1.0 / len(self.shortest_path[current_sym][1:])
+                            new_prob = 1.0 / len(shortest_path[1:])
                         else:
                             new_prob = self.get_probability(self.pcfg, current_sym[0], index, current_depth) / prob_non_recursive
                         prob_aux += new_prob
@@ -286,7 +287,7 @@ class Grammar:
                             break
                 else:
                     prob_aux = 0.0
-                    for index, option in enumerate(self.grammar[current_sym[0]]):
+                    for index in range(len(self.grammar[current_sym[0]])):
                         prob_aux += self.get_probability(self.pcfg, current_sym[0], index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -295,17 +296,17 @@ class Grammar:
             else:
                 # re-mapping with new probabilities                
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
-                if current_depth >= (self.max_depth - self.shortest_path[current_sym][0]):
+                if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         prob_non_recursive += self.get_probability(self.pcfg, current_sym[0], index, current_depth)
                     prob_aux = 0.0
-                    for rule in self.shortest_path[current_sym][1:]:
+                    for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0: 
                             # when the probability of choosing the symbol is 0
-                            new_prob = 1.0 / len(self.shortest_path[current_sym][1:])
+                            new_prob = 1.0 / len(shortest_path[1:])
                         else:
                             new_prob = self.get_probability(self.pcfg, current_sym[0], index, current_depth) / prob_non_recursive
                         prob_aux += new_prob
