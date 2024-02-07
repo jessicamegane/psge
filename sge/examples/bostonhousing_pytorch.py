@@ -28,7 +28,7 @@ class BostonHousing():
         self.run = run
         self.has_test_set = has_test_set
         self.read_dataset()
-        self.calculate_rrse_denominators()
+        # self.calculate_rrse_denominators()
 
     def read_dataset(self):
         dataset = []
@@ -48,15 +48,13 @@ class BostonHousing():
 
 
     def calculate_rrse_denominators(self):
-        self.__RRSE_train_denominator = 0
-        self.__RRSE_test_denominator = 0
         train_outputs = [entry[-1] for entry in self.__train_set]
         train_output_mean = float(sum(train_outputs)) / len(train_outputs)
-        self.__RRSE_train_denominator = sum([(i - train_output_mean)**2 for i in train_outputs])
+        self.__RRSE_train_denominator = torch.tensor(sum([(i - train_output_mean)**2 for i in train_outputs]),dtype=torch.float32, device=cur_dev)
 
         test_outputs = [entry[-1] for entry in self.__test_set]
         test_output_mean = float(sum(test_outputs)) / len(test_outputs)
-        self.__RRSE_test_denominator = sum([(i - test_output_mean)**2 for i in test_outputs])
+        self.__RRSE_test_denominator = torch.tensor(sum([(i - test_output_mean)**2 for i in test_outputs]),dtype=torch.float32, device=cur_dev)
 
 
     def get_error(self, individual, dataset):
@@ -72,12 +70,17 @@ class BostonHousing():
                 0)(dataset)
 
             #pred_error = np.sum(np.power(predicted - dataset[:, 0], 2))
+            # error = torch.sub(predicted, dataset[:, -1])
+
+            # pred_error = torch.square(error)
+
             pred_error = RMSELoss()(predicted, dataset[:, -1])
-            #print(pred_error)
-            #input()
+            if error.isnan() or error.isinf():
+                     error = torch.tensor(self.__invalid_fitness, device=cur_dev)
+
         except (OverflowError, ValueError) as e:
-            return self.__invalid_fitness
-        #print(pred_error)
+            return torch.tensor(self.__invalid_fitness, device=cur_dev)
+
         return pred_error
 
 
@@ -88,6 +91,11 @@ class BostonHousing():
             return None
 
         error = self.get_error(individual, self.__train_set)
+        # error = torch.sqrt(torch.div(error, self.__RRSE_train_denominator))
+
+        # if error.isnan() or error.isinf():
+        #          error = torch.tensor(self.__invalid_fitness, device=cur_dev)
+
         # error = _sqrt_( error /self.__RRSE_train_denominator)
 
         if error is None:
@@ -97,6 +105,7 @@ class BostonHousing():
         if self.__test_set is not None:
             test_error = 0
             test_error = self.get_error(individual, self.__test_set)
+            # test_error = torch.sqrt(torch.div(test_error, self.__RRSE_test_denominator))
             # test_error = _sqrt_( test_error / float(self.__RRSE_test_denominator))
 
         return (float(error.cpu().data.numpy()), {'generation': 0, "evals": 1, "test_error": float(test_error.cpu().data.numpy())})
