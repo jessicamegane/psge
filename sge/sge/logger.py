@@ -12,8 +12,9 @@ class NumpyEncoder(json.JSONEncoder):
 
 def evolution_progress(generation, pop, best, gram):
     fitness_samples = [i['fitness'] for i in pop]
+    depth_samples = [i['tree_depth'] for i in pop]
     # data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
-    data = f"{generation};{best['fitness']};{np.nanmean(fitness_samples)};{np.nanstd(fitness_samples)};{best['other_info']['test_error']}"
+    data = f"{generation};{best['fitness']};{np.nanmean(fitness_samples)};{np.nanstd(fitness_samples)};{best['other_info']['test_error']};{best['tree_depth']};{np.nanmean(depth_samples)};{np.nanmedian(depth_samples)}"
 
     if params['VERBOSE']:
         print(data)
