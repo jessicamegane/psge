@@ -74,7 +74,7 @@ def get_individual_number_expansions(pop, counter):
             # counter[nt_i] = counter[nt_i]
     return counter
 
-def dependent_update(population, lf, n_best=10):
+def dependent_update(population, lf, n_best):
     gram = grammar.get_pcfg()
     rows, columns = gram.shape
     counter = get_individual_number_expansions(population[:n_best], [0] * len(grammar.get_non_terminals()))
@@ -82,7 +82,7 @@ def dependent_update(population, lf, n_best=10):
     counter_bad = get_individual_number_expansions(population[-n_best:], [0] * len(grammar.get_non_terminals()))
     # print("counter bad \n", counter_bad)
     # input()
-    p_mutation = 0.001
+    p_mutation = 0.01
     amplitude_mutation = 0.05
     for nt_i in range(rows):
         for depth_i in range(columns):
@@ -115,14 +115,16 @@ def dependent_update(population, lf, n_best=10):
                         # # segunda versao
                         #     gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] - gram[nt_i][depth_i][prod_i] * lf
                 # mutation on the value "gauss_p_mutation"
-            # for i_prod in range(len(gram[nt_i][depth_i])):
-            #     if np.random.uniform() < p_mutation:
-            #         gram[nt_i][depth_i][i_prod] = np.random.normal(gram[nt_i][depth_i][i_prod],amplitude_mutation)
+            for i_prod in range(len(gram[nt_i][depth_i])):
+                if np.random.uniform() < p_mutation:
+                    # segunda nova versao 2nd version caderno escrito
+                    # gram[nt_i][depth_i][i_prod] = np.random.normal(gram[nt_i][depth_i][i_prod],amplitude_mutation)
                     # mutation "mut_0.001_"
-                    # if np.random.uniform() < 0.50:
-                    #     gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] / (1+lf)
-                    # else:
-                    #     gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] * (1+lf)
+                    # terceira nova versao 3rd version caderno escrito
+                    if np.random.uniform() < 0.50:
+                        gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] / (1+lf)
+                    else:
+                        gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] * (1+lf)
             gram[nt_i][depth_i] = np.clip(gram[nt_i][depth_i], 0, np.infty) / np.sum(np.clip(gram[nt_i][depth_i], 0, np.infty))
             if round(np.sum(gram[nt_i][depth_i]),3) > 1:
                 print(gram[nt_i][depth_i])

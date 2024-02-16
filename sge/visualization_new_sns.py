@@ -331,11 +331,11 @@ def performance(problem, paths):
     performance_plot(problem, df, display=False)
     boxplot(problem, df, 200, display=False)
     boxplot(problem, df, 300, display=False)
-    boxplot_depth(problem, df, 10, display=False)
-    boxplot_depth(problem, df, 50, display=False)
-    boxplot_depth(problem, df, 100, display=False)
-    boxplot_depth(problem, df, 200, display=False)
-    boxplot_depth(problem, df, 300, display=False)
+    # boxplot_depth(problem, df, 10, display=False)
+    # boxplot_depth(problem, df, 50, display=False)
+    # boxplot_depth(problem, df, 100, display=False)
+    # boxplot_depth(problem, df, 200, display=False)
+    # boxplot_depth(problem, df, 300, display=False)
     
 
 if __name__ == "__main__":
@@ -376,9 +376,24 @@ if __name__ == "__main__":
     #     "dependent_pagie/1stversion_n_best_10/1.0/", 
     #     "dependent_pagie/1stversion_n_best_1/1.0/", 
     ]
+    # comparing mutations
     paths = [
         "dependent_pagie_mut_depth/1stversion_n_best_20/1.0/",
         "dependent_pagie_old_mut_depth/1stversion_n_best_20/1.0/",
+    ]
+    # new parameters: (standard/dependent pagie = new mutation fix torch)
+    paths = [
+        "standard_pagie/1.0/",
+        "dependent_pagie/2ndversion_n_best_10_pmut_005/1.0/",
+        "dependent_pagie/2ndversion_n_best_10_pmut_01/1.0/",
+        # "dependent_pagie/1stversion_n_best_20/1.0/",
+        # "dependent_pagie/2ndversion_n_best_20_pmut_001/1.0/",
+        "dependent_pagie/2ndversion_n_best_20_pmut_005/1.0/",
+        "dependent_pagie/2ndversion_n_best_20_pmut_01/1.0/",
+        # "dependent_pagie/2ndversion_n_best_20_pmut_015/1.0/",
+        # "dependent_pagie/2ndversion_n_best_30_pmut_001/1.0/",
+        "dependent_pagie/2ndversion_n_best_30_pmut_005/1.0/",
+        "dependent_pagie/2ndversion_n_best_30_pmut_01/1.0/",
     ]
 
     # problem='bostonhousing'
