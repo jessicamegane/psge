@@ -6,6 +6,7 @@ from sge.parameters import params
 def mutate(p, pmutation):
     p = copy.deepcopy(p)
     p['fitness'] = None
+    pcfg = grammar.get_pcfg()
     size_of_genes = grammar.count_number_of_options_in_production()
     mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[nt] != 1 and len(p['genotype'][index]) > 0]
     for at_gene in mutable_genes:
@@ -24,20 +25,20 @@ def mutate(p, pmutation):
                     prob = 0.0
                     rule = shortest_path[np.random.randint(1, len(shortest_path))]
                     index = grammar.get_dict()[nt].index(rule)
-                    if grammar.get_probability(grammar.get_pcfg(), nt_index, index, current_depth) == 0.0:
+                    if grammar.get_probability(pcfg, nt_index, index) == 0.0:
                         continue
                     k = 0
-                    for i in grammar.get_probabilities_non_terminal(nt_index, current_depth):
+                    for i in grammar.get_probabilities_non_terminal(pcfg, nt_index):
                         if k == index:
                             break
                         prob += i
                         k += 1
-                    codon = np.random.uniform(prob, prob + grammar.get_probability(grammar.get_pcfg(), nt_index, index, current_depth))
+                    codon = np.random.uniform(prob, prob + grammar.get_probability(pcfg, nt_index, index))
                     expansion_possibility = index
                 else:
                     prob_aux = 0.0
                     for index in range(len(grammar.get_dict()[nt])):
-                        prob_aux += grammar.get_pcfg()[grammar.get_index_of_non_terminal()[nt],index]
+                        prob_aux += pcfg[grammar.get_index_of_non_terminal()[nt],index]
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break

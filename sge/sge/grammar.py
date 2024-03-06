@@ -182,6 +182,12 @@ class Grammar:
             else:
                 non_recursive_elements += [options]
         return non_recursive_elements
+    
+    def get_probability(self, grammar, nt_index, index):
+        return grammar[nt_index,index]
+        
+    def get_probabilities_non_terminal(self, grammar, nt_index):
+        return grammar[nt_index]
 
     def recursive_individual_creation(self, genome, symbol, current_depth):
         codon = np.random.uniform()
@@ -385,13 +391,14 @@ get_non_recursive_options = _inst.get_non_recursive_options
 # compute_non_recursive_options = _inst.compute_non_recursive_options
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
+get_probability = _inst.get_probability
+get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
 get_mask = _inst.get_mask
 get_shortest_path = _inst.get_shortest_path
 get_index_of_non_terminal = _inst.get_index_of_non_terminal
 ordered_non_terminals = _inst.ordered_non_terminals
 max_init_depth = _inst.get_max_init_depth
 python_filter = _inst.python_filter
-
 if __name__ == "__main__":
     np.random.seed(42)
     g = Grammar("grammars/regression.txt", 9)
