@@ -26,8 +26,9 @@ class RRSE():
         self.criterion = torch.nn.MSELoss(reduction='sum')
         train_output_mean = torch.mean(train_set.target)
         self.__RRSE_train_denominator = self.criterion(train_set.target, train_output_mean)
-        test_output_mean = torch.mean(test_set.target)
-        self.__RRSE_test_denominator = self.criterion(test_set.target, test_output_mean)
+        if test_set:
+            test_output_mean = torch.mean(test_set.target)
+            self.__RRSE_test_denominator = self.criterion(test_set.target, test_output_mean)
 
     def calculate(self, predicted, dataset):
         pred_error = self.criterion(predicted, dataset.target)
@@ -103,8 +104,9 @@ class BostonHousing():
 
         if self.__test_set:
             test_error = self.get_error(self.__test_set)
+            return (float(error.cpu().data.numpy()), {'generation': 0, "evals": 1, "test_error": float(test_error.cpu().data.numpy())})
 
-        return (float(error.cpu().data.numpy()), {'generation': 0, "evals": 1, "test_error": float(test_error.cpu().data.numpy())})
+        return (float(error.cpu().data.numpy()), {'generation': 0, "evals": 1, "test_error": test_error})
 
 
 if __name__ == "__main__":
