@@ -209,7 +209,7 @@ class Grammar:
     
     def get_probability(self, grammar, nt_index, index, current_depth):
         if self.probs_update == 'dependent':
-            return grammar[nt_index,current_depth][index]
+            return grammar[nt_index][current_depth][index]
         elif self.probs_update == 'standard':
             return grammar[nt_index,index]
         else:
@@ -263,6 +263,14 @@ class Grammar:
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
         return output, max_depth
+    
+    def mapping_with_array(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
+        if positions_to_map is None:
+            positions_to_map = [0] * len(self.ordered_non_terminals)
+        output = []
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
+        return output, max_depth
+
 
     def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output):
         depths = [current_depth]
@@ -361,6 +369,9 @@ class Grammar:
     def get_pcfg(self):
         return self.pcfg
 
+    def set_pcfg(self, grammar):
+        self.pcfg = grammar
+
     def get_shortest_path(self):
         return self.shortest_path
 
@@ -424,6 +435,7 @@ count_number_of_options_in_production = _inst.count_number_of_options_in_product
 list_non_recursive_productions = _inst.list_non_recursive_productions
 recursive_individual_creation = _inst.recursive_individual_creation
 mapping = _inst.mapping
+mapping_with_array = _inst.mapping_with_array
 start_rule = _inst.get_start_rule
 set_max_tree_depth = _inst.set_max_tree_depth
 set_min_init_tree_depth = _inst.set_min_init_tree_depth
@@ -432,6 +444,7 @@ get_non_recursive_options = _inst.get_non_recursive_options
 # compute_non_recursive_options = _inst.compute_non_recursive_options
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
+set_pcfg = _inst.set_pcfg
 get_probability = _inst.get_probability
 get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
 get_mask = _inst.get_mask
