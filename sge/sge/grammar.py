@@ -90,12 +90,11 @@ class Grammar:
                         if left_side not in self.grammar:
                             self.grammar[left_side] = temp_productions
         
+        self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
                 self.pcfg = np.array(json.load(f))
-        else:
-            self.generate_uniform_pcfg()
         # self.compute_non_recursive_options()
         self.find_shortest_path()
 

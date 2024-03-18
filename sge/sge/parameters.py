@@ -7,8 +7,8 @@ Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Nei
 '''
 """"Algorithm Parameters"""
 params = {'PARAMETERS': None,
-          'POPSIZE': 10,
-          'GENERATIONS': 10,
+          'POPSIZE': 100,
+          'GENERATIONS': 100,
           'ELITISM': 10,                    # number of individuals that survive
           'PROB_CROSSOVER': 0.9,
           'PROB_MUTATION': 0.1,
@@ -29,6 +29,7 @@ params = {'PARAMETERS': None,
           'ADAPTIVE_MUTATION': False,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
+          'GRAMMAR_PROBS': None,
           }
 
 
@@ -86,6 +87,10 @@ def set_parameters(arguments):
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
+    parser.add_argument('--grammar_probs',
+                        dest='GRAMMAR_PROBS',
+                        type=str,
+                        help='Path to json file, with list of probabilities to each production rule.')
     parser.add_argument('--learning_factor',
                         dest='LEARNING_FACTOR',
                         type=float,
