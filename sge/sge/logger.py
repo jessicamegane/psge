@@ -11,10 +11,16 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 def evolution_progress(generation, pop, best, gram):
-    fitness_samples = [i['fitness'] for i in pop]
-    depth_samples = [i['tree_depth'] for i in pop]
+    fitness_samples = []
+    depth_samples = []
+    genotype_samples = []
+    for i in pop:
+        fitness_samples.append(i['fitness'])
+        depth_samples.append(i['tree_depth'])
+        genotype_samples.append(sum(len(sublist) for sublist in i['genotype']))
+    best_len = sum(len(sublist) for sublist in best['genotype'])
     # data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
-    data = f"{generation};{best['fitness']};{np.nanmean(fitness_samples)};{np.nanstd(fitness_samples)};{best['other_info']['test_error']};{best['tree_depth']};{np.nanmean(depth_samples)};{np.nanmedian(depth_samples)}"
+    data = f"{generation};{best['fitness']};{np.nanmean(fitness_samples)};{np.nanstd(fitness_samples)};{best['other_info']['test_error']};{best['tree_depth']};{np.nanmean(depth_samples)};{np.nanmedian(depth_samples)};{best_len};{np.nanmean(genotype_samples)};{np.nanmedian(genotype_samples)}"
 
     if params['VERBOSE']:
         print(data)

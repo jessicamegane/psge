@@ -8,7 +8,7 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
-from sge.operators.update import independent_update, dependent_update, independent_update_nbest
+from sge.operators.update import independent_update, dependent_update
 from sge.parameters import (
     params,
     set_parameters,
