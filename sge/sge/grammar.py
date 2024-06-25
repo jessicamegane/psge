@@ -2,6 +2,7 @@ import re
 from sge.utilities import ordered_set
 import json
 import numpy as np
+import copy
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
     NT = "NT"
@@ -13,6 +14,7 @@ class Grammar:
     def __init__(self):
         self.grammar_file = None
         self.grammar = {}
+        self.attributes = {}
         self.productions_labels = {}
         self.non_terminals, self.terminals = set(), set()
         self.ordered_non_terminals = ordered_set.OrderedSet()
@@ -27,6 +29,7 @@ class Grammar:
         self.pcfg_path = None
         self.index_of_non_terminal = {}
         self.shortest_path = {}
+        self.counter = None
 
     def set_path(self, grammar_path):
         self.grammar_file = grammar_path
@@ -101,6 +104,8 @@ class Grammar:
                 self.generate_uniform_pcfg()
             elif probs_update == 'dependent':
                 self.generate_dependent_pcfg()
+            elif probs_update == 'conditional':
+                self.generate_conditional_pcfg()
             else:
                 raise Exception("You need to specify a valid mechanism to update probabilities or provide a grammar.")
         # self.compute_non_recursive_options()
@@ -158,6 +163,7 @@ class Grammar:
             array[i,:number_probs] = prob
             if nt not in self.index_of_non_terminal:
                 self.index_of_non_terminal[nt] = i
+                self.attributes[i] = -1
         self.pcfg = array
         self.pcfg_mask = self.pcfg != 0
 
@@ -175,8 +181,29 @@ class Grammar:
                 array[i, j] = np.full(number_prods, prob)
             if nt not in self.index_of_non_terminal:
                 self.index_of_non_terminal[nt] = i
+                self.attributes[i] = -1
         self.pcfg = array
         # self.pcfg_mask = self.pcfg != None
+
+    def generate_conditional_pcfg(self):
+        array = []
+        counter = []
+        for i, nt in enumerate(self.grammar):
+            number_prods = len(self.grammar[nt])
+            prob = 1.0 / number_prods
+            cond_probs = np.full(number_prods, prob)
+            nt_list = [cond_probs for _ in range(number_prods)]
+            array.append(nt_list)
+            if nt not in self.index_of_non_terminal:
+                self.index_of_non_terminal[nt] = i
+                # FIXME: mudar expansao
+                self.attributes[i] = -1
+            c = np.zeros((number_prods, number_prods+1))
+            counter.append(c)
+
+        self.pcfg = array
+        print(self.pcfg)
+        self.counter = counter
 
     def generate_random_pcfg(self):
         pass
@@ -212,6 +239,8 @@ class Grammar:
             return grammar[nt_index][current_depth][index]
         elif self.probs_update == 'standard':
             return grammar[nt_index,index]
+        elif self.probs_update == 'conditional':
+            return grammar[nt_index][self.attributes[nt_index]][index]
         else:
             print("Flag for type of update does not exist.")
             input()
@@ -221,8 +250,10 @@ class Grammar:
             return self.pcfg[nt_index]
         elif self.probs_update == 'dependent':
             return self.pcfg[nt_index,current_depth]
+        elif self.probs_update == 'conditional':
+            return self.pcfg[nt_index][self.attributes[nt_index]]
 
-    def recursive_individual_creation(self, genome, symbol, current_depth):
+    def recursive_individual_creation(self, genome, symbol, current_depth, counter):
         codon = np.random.uniform()
         nt_index = self.index_of_non_terminal[symbol]
         if current_depth >= (self.max_init_depth - self.shortest_path[(symbol,'NT')][0]):
@@ -247,32 +278,45 @@ class Grammar:
                     break
 
         genome[self.get_non_terminals().index(symbol)].append([expansion_possibility, codon, current_depth])
+        # FIXME: counter is -1 when there is no expansion -> which is cool because is also the last position eheheheh
+        # input()
+        # print(counter)
+        # print(nt_index)
+        # print(expansion_possibility)
+        # print(symbol)
+        # print(self.attributes)
+        # print(current_depth)
+        counter[nt_index][expansion_possibility][self.attributes[nt_index]] += 1
+        self.attributes[nt_index] = expansion_possibility
         expansion_symbols = self.grammar[symbol][expansion_possibility]
         depths = [current_depth]
         for sym in expansion_symbols:
             if sym[1] != self.T:
-                depths.append(self.recursive_individual_creation(genome, sym[0], current_depth + 1))
+                depths.append(self.recursive_individual_creation(genome, sym[0], current_depth + 1, counter))
         return max(depths)
 
     def mapping(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
+        self.reset_attributes()
+        counter = copy.deepcopy(self.get_counter())
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, counter)
         output = "".join(output)
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
-        return output, max_depth
+        return output, max_depth, counter
     
     def mapping_with_array(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
-        return output, max_depth
+        counter = copy.deepcopy(self.get_counter())
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, counter)
+        return output, max_depth, counter
 
 
-    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output):
+    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output, counter):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -338,12 +382,18 @@ class Grammar:
                             break
             # update mapping rules com a updated expansion possibility
             mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility, codon, current_depth]
+            # print(counter)
+            # print(nt_index)
+            # print(expansion_possibility)
+            # print(self.attributes)
+            counter[nt_index][expansion_possibility][self.attributes[nt_index]] += 1
+            self.attributes[nt_index] = expansion_possibility
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
                 depths.append(
-                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output))
+                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, counter))
         return max(depths)
 
     def compute_non_recursive_options(self):
@@ -406,6 +456,16 @@ class Grammar:
 
     def get_start_rule(self):
         return self.start_rule
+    
+    def reset_attributes(self):
+        for k,v in self.attributes.items():
+            self.attributes[k] = -1
+
+    def get_attributes(self):
+        return self.attributes
+
+    def get_counter(self):
+        return self.counter
 
     def __str__(self):
         grammar = self.grammar
@@ -430,6 +490,9 @@ _inst = Grammar()
 set_path = _inst.set_path
 set_pcfg_path = _inst.set_pcfg_path
 read_grammar = _inst.read_grammar
+reset_attributes = _inst.reset_attributes
+get_attributes = _inst.get_attributes
+get_counter = _inst.get_counter
 get_non_terminals = _inst.get_non_terminals
 count_number_of_options_in_production = _inst.count_number_of_options_in_production
 list_non_recursive_productions = _inst.list_non_recursive_productions

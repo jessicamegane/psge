@@ -18,11 +18,13 @@ from sge.parameters import (
 
 def generate_random_individual():
     genotype = [[] for _ in grammar.get_non_terminals()]
-    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
+    grammar.reset_attributes()
+    counter = copy.deepcopy(grammar.get_counter())
+    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, counter)
     if params['ADAPTIVE_MUTATION']:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype], 'counter': counter}
     else:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'counter': counter}
 
 
 def make_initial_population():
@@ -32,13 +34,14 @@ def make_initial_population():
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth = grammar.mapping(ind['genotype'], mapping_values)
+    phen, tree_depth, counter = grammar.mapping(ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
+    ind['counter'] = counter
 
 
 def setup(parameters_file_path = None):
