@@ -130,3 +130,63 @@ def dependent_update(population, lf, n_best):
                 print(gram[nt_i][depth_i])
                 print("error in clip")
                 input()
+
+
+def conditional_update(population, lf, n_best):
+    gram = grammar.get_pcfg()
+    p_mutation = 0.0005
+    for nt_i, nt_table in enumerate(gram):
+
+        counter_nt_symb = population[0]['counter'][nt_i]
+        for i in range(1, n_best):
+            counter_nt_symb += population[i]['counter'][nt_i]
+        # print("nt table")
+        # print(nt_table)
+    
+        for previous_sym_i, previous_prod_table in enumerate(nt_table):
+            if len(previous_prod_table) <= 2:
+                continue
+            # print("previous prod table")
+            # print(previous_prod_table)
+            for symb_i, prob in enumerate(previous_prod_table):
+                old_prob = prob
+                # print(counter_nt_symb)
+                # print(symb_i)
+                # print(previous_sym_i)
+                counter = counter_nt_symb[previous_sym_i][symb_i]
+                # counter_no_previous = counter_nt_symb[symb_i][-1]
+
+
+                total = np.sum(counter_nt_symb[previous_sym_i])
+                # print("beggining")
+                # print(counter)
+                # print(total)
+                if counter > 0:
+                    # print("update good")
+                    # print(counter)
+                    # print(old_prob)
+                    gram[nt_i][previous_sym_i][symb_i] = min(old_prob + lf * counter / total, 1.0)
+                    # print(gram[nt_i][previous_sym_i][symb_i])
+                else:
+                    # print("update bad")
+                    # print(counter)
+                    # print(old_prob)
+                    gram[nt_i][previous_sym_i][symb_i] = max(old_prob - lf * old_prob, 0.0)
+                    # print(gram[nt_i][previous_sym_i][symb_i])
+                # FIXME: maybe here have a smaller lf
+                # if np.random.uniform() < p_mutation:
+                   
+                #     if np.random.uniform() < 0.50:
+                #         gram[nt_i][previous_sym_i][symb_i] = gram[nt_i][previous_sym_i][symb_i] / (1+lf)
+                #     else:
+                #         gram[nt_i][previous_sym_i][symb_i] = gram[nt_i][previous_sym_i][symb_i] * (1+lf)
+            # print("gram updated q step")
+            # print(gram[nt_i])
+            # input()
+            gram[nt_i][previous_sym_i] = np.clip(gram[nt_i][previous_sym_i], 0, np.infty) / np.sum(np.clip(gram[nt_i][previous_sym_i], 0, np.infty))
+
+        # print("individual")
+        # print(population[i]['phenotype'])
+        # print(best)
+        # print(gram)
+        # input()

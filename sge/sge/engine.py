@@ -8,7 +8,7 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
-from sge.operators.update import independent_update, dependent_update
+from sge.operators.update import independent_update, dependent_update, conditional_update
 from sge.parameters import (
     params,
     set_parameters,
@@ -90,6 +90,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
         elif params['PROBS_UPDATE'] == 'dependent':
             dependent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        elif params['PROBS_UPDATE'] == 'conditional':
+            conditional_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
 
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())

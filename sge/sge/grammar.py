@@ -157,6 +157,7 @@ class Grammar:
         assigns uniform probabilities to grammar
         """
         array = np.zeros(shape=(len(self.grammar.keys()),self.max_number_prod_rules))
+        counter = []
         for i, nt in enumerate(self.grammar):
             number_probs = len(self.grammar[nt])
             prob = 1.0 / number_probs
@@ -164,8 +165,11 @@ class Grammar:
             if nt not in self.index_of_non_terminal:
                 self.index_of_non_terminal[nt] = i
                 self.attributes[i] = -1
+            c = np.zeros((number_probs, number_probs+1))
+            counter.append(c)
         self.pcfg = array
         self.pcfg_mask = self.pcfg != 0
+        self.counter = counter
 
     def generate_dependent_pcfg(self):
         """
@@ -191,16 +195,14 @@ class Grammar:
         for i, nt in enumerate(self.grammar):
             number_prods = len(self.grammar[nt])
             prob = 1.0 / number_prods
-            cond_probs = np.full(number_prods, prob)
-            nt_list = [cond_probs for _ in range(number_prods)]
+            nt_list = [np.full(number_prods, prob) for _ in range(number_prods+1)]
             array.append(nt_list)
             if nt not in self.index_of_non_terminal:
                 self.index_of_non_terminal[nt] = i
                 # FIXME: mudar expansao
                 self.attributes[i] = -1
-            c = np.zeros((number_prods, number_prods+1))
+            c = np.zeros((number_prods+1, number_prods))
             counter.append(c)
-
         self.pcfg = array
         print(self.pcfg)
         self.counter = counter
@@ -278,15 +280,7 @@ class Grammar:
                     break
 
         genome[self.get_non_terminals().index(symbol)].append([expansion_possibility, codon, current_depth])
-        # FIXME: counter is -1 when there is no expansion -> which is cool because is also the last position eheheheh
-        # input()
-        # print(counter)
-        # print(nt_index)
-        # print(expansion_possibility)
-        # print(symbol)
-        # print(self.attributes)
-        # print(current_depth)
-        counter[nt_index][expansion_possibility][self.attributes[nt_index]] += 1
+        counter[nt_index][self.attributes[nt_index]][expansion_possibility] += 1
         self.attributes[nt_index] = expansion_possibility
         expansion_symbols = self.grammar[symbol][expansion_possibility]
         depths = [current_depth]
@@ -386,7 +380,7 @@ class Grammar:
             # print(nt_index)
             # print(expansion_possibility)
             # print(self.attributes)
-            counter[nt_index][expansion_possibility][self.attributes[nt_index]] += 1
+            counter[nt_index][self.attributes[nt_index]][expansion_possibility] += 1
             self.attributes[nt_index] = expansion_possibility
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
