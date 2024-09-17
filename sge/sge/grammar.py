@@ -2,6 +2,25 @@ import re
 from sge.utilities import ordered_set
 import json
 import numpy as np
+
+class Node:
+    def __init__(self, symbol, parent=None):
+        self.symbol = symbol
+        self.parent = parent
+        self.children = []
+    
+    def add_children(self, child):
+        self.children.append(child)
+        
+    def search_sub_tree(self):
+        return None
+    
+    def __str__(self, depth=0):
+        ret = "\t"*depth + self.symbol[0] + "\n"
+        for child in self.children:
+            ret += child.__str__(depth+1)
+        return ret
+        
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
     NT = "NT"
@@ -9,6 +28,7 @@ class Grammar:
     NT_PATTERN = "(<.+?>)"
     RULE_SEPARATOR = "::="
     PRODUCTION_SEPARATOR = "|"
+    
 
     def __init__(self):
         self.grammar_file = None
@@ -258,8 +278,12 @@ class Grammar:
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
+        tree = Node(self.start_rule)
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree)
         output = "".join(output)
+        print(output)
+        print(tree)
+        input()
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
         return output, max_depth
@@ -268,11 +292,13 @@ class Grammar:
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
+        tree = Node(self.start_rule)
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree)
+        print(tree)
         return output, max_depth
 
 
-    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output):
+    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output, tree):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -342,8 +368,10 @@ class Grammar:
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
+                child = Node(next_sym, tree)
+                tree.add_children(child)
                 depths.append(
-                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output))
+                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, child))
         return max(depths)
 
     def compute_non_recursive_options(self):
