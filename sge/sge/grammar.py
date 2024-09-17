@@ -9,17 +9,44 @@ class Node:
         self.parent = parent
         self.children = []
     
-    def add_children(self, child):
+    def add_child(self, child):
         self.children.append(child)
         
-    def search_sub_tree(self):
-        return None
+    def extract_subtree_hash(self, levels_up=1, levels_down=3):
+        current_node = self
+        for _ in range(levels_up):
+            if current_node.parent is not None:
+                current_node = current_node.parent
+            else:
+                break
+        subtree = current_node.build_subtree(max_depth=levels_down, skip_node = self)
+        return subtree.convert_to_hash()
+    
+    def build_subtree(self, current_depth = 0, max_depth=None, skip_node = None):
+        if max_depth is not None and current_depth >= max_depth:
+            return None 
+        if self == skip_node:
+            return None
+        
+        new_tree = Node(self.symbol)
+        for child in self.children:
+            subtree = child.build_subtree(current_depth + 1, max_depth)
+            if subtree is not None:
+                subtree.parent = new_tree  # Set the parent for the new subtree node
+                new_tree.children.append(subtree)
+        return new_tree
+
+    def convert_to_hash(self, depth = 0):
+        hash = str(depth) + "_" + self.symbol[0] + "_"
+        for child in self.children:
+            hash += child.convert_to_hash(depth+1)
+        return hash
     
     def __str__(self, depth=0):
-        ret = "\t"*depth + self.symbol[0] + "\n"
+        s = "\t"*depth + self.symbol[0] + "\n"
         for child in self.children:
-            ret += child.__str__(depth+1)
-        return ret
+            s += child.__str__(depth+1)
+        return s
         
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
@@ -283,6 +310,7 @@ class Grammar:
         output = "".join(output)
         print(output)
         print(tree)
+        print(tree.convert_to_hash())
         input()
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
@@ -369,7 +397,7 @@ class Grammar:
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
                 child = Node(next_sym, tree)
-                tree.add_children(child)
+                tree.add_child(child)
                 depths.append(
                     self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, child))
         return max(depths)
