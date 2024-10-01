@@ -130,3 +130,25 @@ def dependent_update(population, lf, n_best):
                 print(gram[nt_i][depth_i])
                 print("error in clip")
                 input()
+
+def subtree_dependent_update(population, lf, n_best):
+    gram = grammar.get_pcfg()
+    counter = {}
+    for ind in population[:n_best]:
+        d = ind['subtree_counter']
+        for key, value in d.items():
+            counter[key] = counter.get(key, 0) + value
+
+    for key, value in counter.items():
+        if value <= 1:
+            continue
+        (hsh, symbol, expansion) = key
+        if hsh not in gram[symbol]:
+            # TODO: mudar expressao
+            number_prods = len(gram[symbol][None])
+            prob = 1.0 / number_prods
+            gram[symbol][hsh] = np.full(number_prods, prob)
+
+        gram[symbol][hsh][expansion] += value * lf
+        # softmax
+        gram[symbol][hsh] = np.clip(gram[symbol][hsh], 0, np.infty) / np.sum(np.clip(gram[symbol][hsh], 0, np.infty))

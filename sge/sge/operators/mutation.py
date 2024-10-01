@@ -8,6 +8,7 @@ def mutate(p, pmutation):
     p['fitness'] = None
     size_of_genes = grammar.count_number_of_options_in_production()
     mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[nt] != 1 and len(p['genotype'][index]) > 0]
+    gram = grammar.get_pcfg()
     for at_gene in mutable_genes:
         nt = list(grammar.get_non_terminals())[at_gene]
         nt_index = grammar.get_index_of_non_terminal()[nt]
@@ -15,6 +16,8 @@ def mutate(p, pmutation):
         mapped = temp[at_gene]
         for position_to_mutate in range(0, mapped):
             if np.random.uniform() < pmutation:
+                # TODO: mutation needs acess to hash -> keeping the whole tree is too much.
+                hsh = None
                 current_value = p['genotype'][at_gene][position_to_mutate]
                 current_depth = current_value[2]
                 shortest_path = grammar.get_shortest_path()[(nt,'NT')]
@@ -24,20 +27,20 @@ def mutate(p, pmutation):
                     prob = 0.0
                     rule = shortest_path[np.random.randint(1, len(shortest_path))]
                     index = grammar.get_dict()[nt].index(rule)
-                    if grammar.get_probability(grammar.get_pcfg(), nt_index, index, current_depth) == 0.0:
+                    if grammar.get_probability(gram, nt_index, index, current_depth, hsh) == 0.0:
                         continue
                     k = 0
-                    for i in grammar.get_probabilities_non_terminal(nt_index, current_depth):
+                    for i in grammar.get_probabilities_non_terminal(gram, nt_index, current_depth, hsh):
                         if k == index:
                             break
                         prob += i
                         k += 1
-                    codon = np.random.uniform(prob, prob + grammar.get_probability(grammar.get_pcfg(), nt_index, index, current_depth))
+                    codon = np.random.uniform(prob, prob + grammar.get_probability(gram, nt_index, index, current_depth, hsh))
                     expansion_possibility = index
                 else:
                     prob_aux = 0.0
                     for index in range(len(grammar.get_dict()[nt])):
-                        prob_aux += grammar.get_probability(grammar.get_pcfg(), nt_index, index, current_depth)
+                        prob_aux += grammar.get_probability(gram, nt_index, index, current_depth, hsh)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break

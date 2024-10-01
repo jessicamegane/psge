@@ -31,6 +31,8 @@ params = {'PARAMETERS': None,
           'ADAPTIVE_MUTATION': False,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
+          'LEVELS_UP': 1,
+          'LEVELS_DOWN': 3
           }
 
 
@@ -91,7 +93,7 @@ def set_parameters(arguments):
     parser.add_argument('--probs_update',
                         dest='PROBS_UPDATE',
                         type=str,
-                        help='Specifies the type of update of probabilities. Currtently is implemented \'standard\' and \'dependent\'.')    
+                        help='Specifies the type of update of probabilities. Currtently is implemented \'standard\', \'dependent\', and \'subtree_dependent\'.')    
     parser.add_argument('--learning_factor',
                         dest='LEARNING_FACTOR',
                         type=float,
@@ -124,6 +126,14 @@ def set_parameters(arguments):
                         dest='GAUSS_SD',
                         type=float,
                         help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true.')
+    parser.add_argument('--levels_up',
+                        dest='LEVELS_UP',
+                        type=int,
+                        help='Defines how many nodes up the tree to start the subtree. Option only if --update_probs is \'subtree_dependent\'.')
+    parser.add_argument('--levels_down',
+                        dest='LEVELS_DOWN',
+                        type=int,
+                        help='Defines the depth of the subtree. Option only if --update_probs is \'subtree_dependent\'.')
     parser.add_argument('--experiment_name',
                         dest='EXPERIMENT_NAME',
                         type=str,

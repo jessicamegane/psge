@@ -8,7 +8,7 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
-from sge.operators.update import independent_update, dependent_update
+from sge.operators.update import independent_update, dependent_update, subtree_dependent_update
 from sge.parameters import (
     params,
     set_parameters,
@@ -32,13 +32,14 @@ def make_initial_population():
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth = grammar.mapping(ind['genotype'], mapping_values)
+    phen, tree_depth, subtree_counter = grammar.mapping(ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
+    ind['subtree_counter'] = subtree_counter
 
 
 def setup(parameters_file_path = None):
@@ -53,7 +54,7 @@ def setup(parameters_file_path = None):
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
     grammar.set_path(params['GRAMMAR'])
-    grammar.read_grammar(params['PROBS_UPDATE'])
+    grammar.read_grammar(params['PROBS_UPDATE'], params['LEVELS_UP'], params['LEVELS_DOWN'])
 
 
 
@@ -87,6 +88,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
         elif params['PROBS_UPDATE'] == 'dependent':
             dependent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        elif params['PROBS_UPDATE'] == 'subtree_dependent':
+            subtree_dependent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
 
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
@@ -120,5 +123,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
         population = new_population
         it += 1
+        hash_counter = grammar.get_hash_counter()
+        print(hash_counter)
+        print(len(hash_counter))
+        # input()
     print(grammar.get_pcfg())
+    print(hash_counter)
+    print(len(hash_counter))
+    # input()
 

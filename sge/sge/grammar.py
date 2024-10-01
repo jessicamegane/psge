@@ -20,7 +20,15 @@ class Node:
             else:
                 break
         subtree = current_node.build_subtree(max_depth=levels_down, skip_node = self)
-        return subtree.convert_to_hash()
+        if subtree == None:
+            return None
+        # print("----------")
+        # print(self.symbol)
+        # print(subtree)
+        hsh = subtree.convert_to_hash()
+        # print(hash)
+        # input()
+        return hsh
     
     def build_subtree(self, current_depth = 0, max_depth=None, skip_node = None):
         if max_depth is not None and current_depth >= max_depth:
@@ -30,7 +38,7 @@ class Node:
         
         new_tree = Node(self.symbol)
         for child in self.children:
-            subtree = child.build_subtree(current_depth + 1, max_depth)
+            subtree = child.build_subtree(current_depth + 1, max_depth, skip_node)
             if subtree is not None:
                 subtree.parent = new_tree  # Set the parent for the new subtree node
                 new_tree.children.append(subtree)
@@ -74,6 +82,9 @@ class Grammar:
         self.pcfg_path = None
         self.index_of_non_terminal = {}
         self.shortest_path = {}
+        self.hash_counter = {}
+        self.levels_up = None
+        self.levels_down = None
 
     def set_path(self, grammar_path):
         self.grammar_file = grammar_path
@@ -93,7 +104,7 @@ class Grammar:
     def get_max_init_depth(self):
         return self.max_init_depth
 
-    def read_grammar(self, probs_update='standard'):
+    def read_grammar(self, probs_update='standard', levels_up=1, levels_down=3):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -139,6 +150,8 @@ class Grammar:
 
         # TODO: remove this assignment here, think of a clever way
         self.probs_update = probs_update
+        self.levels_up = levels_up
+        self.levels_down = levels_down
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
@@ -148,6 +161,8 @@ class Grammar:
                 self.generate_uniform_pcfg()
             elif probs_update == 'dependent':
                 self.generate_dependent_pcfg()
+            elif probs_update == 'subtree_dependent':
+                self.generate_subtree_dependent_pcfg()
             else:
                 raise Exception("You need to specify a valid mechanism to update probabilities or provide a grammar.")
         # self.compute_non_recursive_options()
@@ -225,6 +240,21 @@ class Grammar:
         self.pcfg = array
         # self.pcfg_mask = self.pcfg != None
 
+    def generate_subtree_dependent_pcfg(self):
+        """
+        Creates a PCFG with 
+        """
+        array = []
+        for i, nt in enumerate(self.grammar):
+            number_prods = len(self.grammar[nt])
+            prob = 1.0 / number_prods
+            dic = {None: np.full(number_prods, prob)}
+            if nt not in self.index_of_non_terminal:
+                self.index_of_non_terminal[nt] = i
+            array.append(dic)
+        self.pcfg = array
+        print(array)
+
     def generate_random_pcfg(self):
         pass
 
@@ -254,20 +284,24 @@ class Grammar:
                 non_recursive_elements += [options]
         return non_recursive_elements
     
-    def get_probability(self, grammar, nt_index, index, current_depth):
+    def get_probability(self, grammar, nt_index, index, current_depth, hsh=None):
         if self.probs_update == 'dependent':
             return grammar[nt_index][current_depth][index]
         elif self.probs_update == 'standard':
             return grammar[nt_index,index]
+        elif self.probs_update == 'subtree_dependent':
+            return grammar[nt_index].get(hsh, grammar[nt_index].get(None))[index]
         else:
             print("Flag for type of update does not exist.")
             input()
         
-    def get_probabilities_non_terminal(self, nt_index, current_depth):
+    def get_probabilities_non_terminal(self, grammar, nt_index, current_depth, hsh=None):
         if self.probs_update == 'standard':
-            return self.pcfg[nt_index]
+            return grammar[nt_index]
         elif self.probs_update == 'dependent':
-            return self.pcfg[nt_index,current_depth]
+            return grammar[nt_index,current_depth]
+        elif self.probs_update == 'subtree_dependent':
+            return grammar[nt_index].get(hsh, grammar[nt_index].get(None))
 
     def recursive_individual_creation(self, genome, symbol, current_depth):
         codon = np.random.uniform()
@@ -306,31 +340,34 @@ class Grammar:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
         tree = Node(self.start_rule)
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree)
+        counter = {}
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree, counter)
         output = "".join(output)
-        print(output)
-        print(tree)
-        print(tree.convert_to_hash())
-        input()
+        # print(output)
+        # print(tree)
+        # print(tree.convert_to_hash())
+        # input()
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
-        return output, max_depth
+        return output, max_depth, counter
     
     def mapping_with_array(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
         tree = Node(self.start_rule)
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree)
-        print(tree)
-        return output, max_depth
+        counter = {}
+        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output, tree, counter)
+        # print(tree)
+        return output, max_depth, counter
 
 
-    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output, tree):
+    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output, tree, counter):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
         else:
+            hsh = tree.extract_subtree_hash(levels_up = self.levels_up, levels_down = self.levels_down)
             current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
             choices = self.grammar[current_sym[0]]
             shortest_path = self.shortest_path[current_sym]
@@ -342,7 +379,7 @@ class Grammar:
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth) 
+                        prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth, hsh) 
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
@@ -350,7 +387,7 @@ class Grammar:
                             # when the probability of choosing the symbol is 0
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth) / prob_non_recursive
+                            new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth, hsh) / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -358,7 +395,7 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(self.pcfg, nt_index, index, current_depth)
+                        prob_aux += self.get_probability(self.pcfg, nt_index, index, current_depth, hsh)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -370,7 +407,7 @@ class Grammar:
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth)
+                        prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth, hsh)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
@@ -378,7 +415,7 @@ class Grammar:
                             # when the probability of choosing the symbol is 0
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth) / prob_non_recursive
+                            new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth, hsh) / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -386,20 +423,26 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(self.pcfg, nt_index, index, current_depth)
+                        prob_aux += self.get_probability(self.pcfg, nt_index, index, current_depth, hsh)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
             # update mapping rules com a updated expansion possibility
             mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility, codon, current_depth]
             current_production = expansion_possibility
+
+            if hsh is not None:
+                t = (hsh, current_sym_pos, expansion_possibility)
+                counter[t] = counter.setdefault(t, 0) + 1
+                self.hash_counter[hsh] = self.hash_counter.setdefault(hsh, 0) + 1
+
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
                 child = Node(next_sym, tree)
                 tree.add_child(child)
                 depths.append(
-                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, child))
+                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, child, counter))
         return max(depths)
 
     def compute_non_recursive_options(self):
@@ -462,6 +505,9 @@ class Grammar:
 
     def get_start_rule(self):
         return self.start_rule
+    
+    def get_hash_counter(self):
+        return self.hash_counter
 
     def __str__(self):
         grammar = self.grammar
@@ -501,6 +547,7 @@ get_non_recursive_options = _inst.get_non_recursive_options
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
 set_pcfg = _inst.set_pcfg
+get_hash_counter = _inst.get_hash_counter
 get_probability = _inst.get_probability
 get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
 get_mask = _inst.get_mask
