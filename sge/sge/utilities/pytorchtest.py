@@ -6,17 +6,15 @@ _min_domain = -1
 _max_domain = 1
 _domain_delta = _max_domain - _min_domain
 dtype = torch.float32
-#dev = torch.device("cpu")
-cur_dev = torch.device("mps")
-res = [8, 8]
 
-# Test CUDA
-#print("Is CUDA available:\t", torch.backends.mps.is_available():)
-#cur_dev = torch.cuda.current_device()
-#print("Current CUDA device:", dev)
-#print("CUDA device name:\t", torch.cuda.get_device_name(cur_dev))
-#print("\n")
-#torch.cuda.device(cur_dev)
+if torch.cuda.is_available():
+    cur_dev = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    cur_dev = torch.device("mps")
+else:
+    cur_dev = torch.device("cpu")
+
+res = [8, 8]
 
 def node_tensor(x1, dims=[]):
     return torch.tensor(x1, dtype=dtype, device=cur_dev)
@@ -115,8 +113,6 @@ def tensor_rmse(x1, x2):
 def node_clamp(tensor):
     return torch.clip(tensor, _min_domain, _max_domain)
 
-# return x * x * x * (x * (x * 6 - 15) + 10);
-# simplified to x2*(6x3 - (15x2 - 10x)) to minimize operations
 def node_sstepp(x1, dims=[]):
     x = node_clamp(x1)
     x2 = torch.square(x)
@@ -127,8 +123,6 @@ def node_sstepp(x1, dims=[]):
                                                   torch.mul(x, 10.0 * _domain_delta)))),
                      _min_domain)
 
-# return x * x * (3 - 2 * x);
-# simplified to (6x2 - 4x3) to minimize TF operations
 def node_sstep(x1, dims=[]):
     x = node_clamp(x1)
     x2 = torch.square(x)
@@ -162,19 +156,13 @@ def final_transform_domain1(final_tensor):
 
     return final_tensor
 
-#fset vars tests (only torch)
 var_x = node_var(np.copy(res), 0)
 var_y = node_var(np.copy(res), 1)
-
-#print("Var x: ", var_x)
-#print("Var y: ", var_y)
 
 torch_tests = []
 tf_tests = []
 torch_vars = []
 tf_vars = []
-
-
 
 torch_vars.append(torch.tensor(np.array([[-1, 2.2, 3], [0, 5.5, -6.9]]), dtype=dtype, device=cur_dev))
 torch_vars.append(torch.tensor(np.array([[1, 2, 3], [4, 5, 0]]), dtype=dtype, device=cur_dev))
@@ -182,67 +170,4 @@ torch_vars.append(torch.tensor(np.array([[1, 1, 0], [1, 0, 1]]), dtype=dtype, de
 torch_vars.append(torch.tensor(np.array([[0.3, 0.5, 1.2], [0.2, 0.7, 0.6]]), dtype=dtype, device=cur_dev))
 torch_vars.append(torch.tensor(np.array([[-2, 3], [4.5, float('-inf')], [0, float('nan')]]), dtype=dtype, device=cur_dev))
 
-
-
-
-# Test operators (torch)
-# print("\nRunning torch tests: \n")
-# a = torch_vars[0]; print("Torch a: ", a.data)
-# b = torch_vars[1]; print("Torch b: ", b.data)
-# c = torch_vars[2]; print("Torch c: ", c.data)
-# w = torch_vars[3]; print("Torch w: ", w.data)
-# t = torch_vars[4]; print("Torch w: ", t.data)
-
 cnt = 0
-# for i in torch_vars:
-#     print("Type of torch var", cnt, ": ", i.device)
-#     print(i)
-#     cnt += 1
-
-
-# tmp = node_abs(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_add(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_sub(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_mul(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_div(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_bit_and(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_bit_or(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_bit_xor(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_cos(a); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_sin(a); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_tan(a); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_if(a, b, c); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_exp(a); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_log(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_max(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_min(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_mdist(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_mod(a, b); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_neg(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_pow(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_sign(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_sqrt(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = tensor_rmse(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_clamp(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_sstepp(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_sstep(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_step(a); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_frac(a); torch_tests.append(tmp); print(tmp.data) ##
-# tmp = node_len(a, b); torch_tests.append(tmp); print(tmp.data)
-# tmp = node_lerp(a, b, w); torch_tests.append(tmp); print(tmp.data)
-# #tmp = node_stack([3, 7, 1], [8, 8, 3], 2); torch_tests.append(tmp); print(tmp.data)
-# tmp = final_transform_domain1(t); torch_tests.append(tmp); print(tmp.data)
-# print("temporary var: ", tmp.device)
-
-# print(a, b)
-
-
-#print(node_abs(node_add(a, b)))
-# tensor = torch.tensor([[3,5,1,2],[3,1,5,3],[7,5,8,3]],dtype=torch.float, device=cur_dev)
-# result = torch.vmap(
-#     lambda x: node_add(x[0], x[1]),
-#     0)(tensor)
-# print(tensor)
-# print(result)
-
-

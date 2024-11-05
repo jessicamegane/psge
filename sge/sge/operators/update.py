@@ -45,6 +45,7 @@ def independent_update(best, lf):
 
         gram[i,:] = np.clip(gram[i,:], 0, np.infty) / np.sum(np.clip(gram[i,:], 0, np.infty))
     # update non_recursive options
+<<<<<<< HEAD
     # grammar.compute_non_recursive_options()
 
 def get_individual_number_expansions(pop, counter):
@@ -152,3 +153,6 @@ def subtree_dependent_update(population, lf, n_best):
         gram[symbol][hsh][expansion] += value * lf
         # softmax
         gram[symbol][hsh] = np.clip(gram[symbol][hsh], 0, np.infty) / np.sum(np.clip(gram[symbol][hsh], 0, np.infty))
+=======
+    # grammar.compute_non_recursive_options()
+>>>>>>> a5a6e8351256b00cb0ebfceace5b6c5f4f494202

@@ -57,7 +57,6 @@ def setup(parameters_file_path = None):
     grammar.read_grammar(params['PROBS_UPDATE'], params['LEVELS_UP'], params['LEVELS_DOWN'])
 
 
-
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
     population = list(make_initial_population())

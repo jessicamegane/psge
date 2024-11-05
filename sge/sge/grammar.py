@@ -152,6 +152,8 @@ class Grammar:
         self.probs_update = probs_update
         self.levels_up = levels_up
         self.levels_down = levels_down
+        
+        self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
@@ -308,11 +310,11 @@ class Grammar:
         nt_index = self.index_of_non_terminal[symbol]
         if current_depth >= (self.max_init_depth - self.shortest_path[(symbol,'NT')][0]):
             prob_non_recursive = 0.0
-            for rule in self.shortest_path[(symbol,'NT')][1:]:
+            for rule in shortest_path[1:]:
                 index = self.grammar[symbol].index(rule)
                 prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth)
             prob_aux = 0.0
-            for rule in self.shortest_path[(symbol,'NT')][1:]:
+            for rule in shortest_path[1:]:
                 index = self.grammar[symbol].index(rule)
                 new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth) / prob_non_recursive
                 prob_aux += new_prob
@@ -556,7 +558,6 @@ get_index_of_non_terminal = _inst.get_index_of_non_terminal
 ordered_non_terminals = _inst.ordered_non_terminals
 max_init_depth = _inst.get_max_init_depth
 python_filter = _inst.python_filter
-
 if __name__ == "__main__":
     np.random.seed(42)
     g = Grammar("grammars/regression.txt", 9)
