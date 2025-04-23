@@ -52,12 +52,12 @@ class ProgSys():
 
         if 'quality' not in result:
             result['quality'] = sys.maxsize
-        return result['quality'], {}
+        return result['quality'], {'test_error': 0.0}
 
     @staticmethod
     def create_eval_process():
         """create separate python process for evaluation"""
-        return subprocess.Popen(['python3.8',
+        return subprocess.Popen(['python3.12',
                                  'resources/progsys/python_script_evaluation.py'],
                                 stdout=subprocess.PIPE,
                                 stdin=subprocess.PIPE)

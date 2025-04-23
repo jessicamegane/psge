@@ -6,7 +6,6 @@ from sge.parameters import params
 def mutate(p, pmutation):
     p = copy.deepcopy(p)
     p['fitness'] = None
-    pcfg = grammar.get_pcfg()
     size_of_genes = grammar.count_number_of_options_in_production()
     mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[nt] != 1 and len(p['genotype'][index]) > 0]
     gram = grammar.get_pcfg()

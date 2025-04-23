@@ -4,13 +4,35 @@ import json
 import numpy as np
 
 class Node:
-    def __init__(self, symbol, parent=None):
+    def __init__(self, symbol, index=None, parent=None):
         self.symbol = symbol
+        self.index_children = index
         self.parent = parent
         self.children = []
     
     def add_child(self, child):
         self.children.append(child)
+
+    def children_index(self, index):
+        self.index_children = index
+
+    def get_hash(self, probs_update, levels_up=1, levels_down=3):
+        if probs_update == 'subtree_dependent':
+            return self.extract_subtree_hash(levels_up, levels_down)
+        elif probs_update == 'common_subtree':
+            return self.get_parent_rule()
+
+    def get_parent_rule(self, levels_up=3):
+        current_node = self
+        for _ in range(levels_up):
+            if current_node.parent is not None:
+                current_node = current_node.parent
+            else:
+                break
+        childs = []
+        for child in current_node.children:
+            childs.append(child.symbol[0])
+        return ''.join(childs) if childs else None
         
     def extract_subtree_hash(self, levels_up=1, levels_down=3):
         current_node = self
@@ -36,7 +58,7 @@ class Node:
         if self == skip_node:
             return None
         
-        new_tree = Node(self.symbol)
+        new_tree = Node(self.symbol, self.index_children)
         for child in self.children:
             subtree = child.build_subtree(current_depth + 1, max_depth, skip_node)
             if subtree is not None:
@@ -151,9 +173,7 @@ class Grammar:
         # TODO: remove this assignment here, think of a clever way
         self.probs_update = probs_update
         self.levels_up = levels_up
-        self.levels_down = levels_down
-        
-        self.generate_uniform_pcfg()
+        self.levels_down = levels_down        
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
@@ -165,6 +185,14 @@ class Grammar:
                 self.generate_dependent_pcfg()
             elif probs_update == 'subtree_dependent':
                 self.generate_subtree_dependent_pcfg()
+            elif probs_update == 'context-aware':
+                self.generate_conditional_pcfg()
+            elif probs_update == 'common_subtree':
+                # grandparent common subtree
+                self.generate_subtree_dependent_pcfg()
+                # independent common subtree
+                # self.probs_update = 'standard'
+                # self.generate_uniform_pcfg()
             else:
                 raise Exception("You need to specify a valid mechanism to update probabilities or provide a grammar.")
         # self.compute_non_recursive_options()
@@ -242,6 +270,25 @@ class Grammar:
         self.pcfg = array
         # self.pcfg_mask = self.pcfg != None
 
+    def generate_conditional_pcfg(self):
+        array = []
+        counter = []
+        for i, nt in enumerate(self.grammar):
+            number_prods = len(self.grammar[nt])
+            prob = 1.0 / number_prods
+            nt_list = [np.full(number_prods, prob) for _ in range(number_prods+1)]
+            array.append(nt_list)
+            if nt not in self.index_of_non_terminal:
+                self.index_of_non_terminal[nt] = i
+                # FIXME: mudar expansao
+                self.attributes[i] = -1
+            c = np.zeros((number_prods+1, number_prods))
+            counter.append(c)
+        self.pcfg = array
+        print(self.pcfg)
+        self.counter = counter
+
+
     def generate_subtree_dependent_pcfg(self):
         """
         Creates a PCFG with 
@@ -293,6 +340,8 @@ class Grammar:
             return grammar[nt_index,index]
         elif self.probs_update == 'subtree_dependent':
             return grammar[nt_index].get(hsh, grammar[nt_index].get(None))[index]
+        elif self.probs_update == 'common_subtree':
+            return grammar[nt_index].get(hsh, grammar[nt_index].get(None))[index]
         else:
             print("Flag for type of update does not exist.")
             input()
@@ -304,17 +353,19 @@ class Grammar:
             return grammar[nt_index,current_depth]
         elif self.probs_update == 'subtree_dependent':
             return grammar[nt_index].get(hsh, grammar[nt_index].get(None))
+        elif self.probs_update == 'common_subtree':
+            return grammar[nt_index].get(hsh, grammar[nt_index].get(None))
 
     def recursive_individual_creation(self, genome, symbol, current_depth):
         codon = np.random.uniform()
         nt_index = self.index_of_non_terminal[symbol]
         if current_depth >= (self.max_init_depth - self.shortest_path[(symbol,'NT')][0]):
             prob_non_recursive = 0.0
-            for rule in shortest_path[1:]:
+            for rule in self.shortest_path[(symbol,'NT')][1:]:
                 index = self.grammar[symbol].index(rule)
                 prob_non_recursive += self.get_probability(self.pcfg, nt_index, index, current_depth)
             prob_aux = 0.0
-            for rule in shortest_path[1:]:
+            for rule in self.shortest_path[(symbol,'NT')][1:]:
                 index = self.grammar[symbol].index(rule)
                 new_prob = self.get_probability(self.pcfg, nt_index, index, current_depth) / prob_non_recursive
                 prob_aux += new_prob
@@ -351,7 +402,7 @@ class Grammar:
         # input()
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
-        return output, max_depth, counter
+        return output, max_depth, counter, tree
     
     def mapping_with_array(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
@@ -369,7 +420,13 @@ class Grammar:
         if current_sym[1] == self.T:
             output.append(current_sym[0])
         else:
-            hsh = tree.extract_subtree_hash(levels_up = self.levels_up, levels_down = self.levels_down)
+            # print("---------")
+            # print(output)
+            # print(current_sym)
+            # hsh = tree.extract_subtree_hash(levels_up = self.levels_up, levels_down = self.levels_down)
+            hsh = tree.get_hash(probs_update=self.probs_update, levels_up = self.levels_up, levels_down = self.levels_down)
+            # print(hsh)
+            # input()
             current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
             choices = self.grammar[current_sym[0]]
             shortest_path = self.shortest_path[current_sym]
@@ -440,9 +497,12 @@ class Grammar:
 
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
+            tree.children_index(current_production)
             for next_sym in next_to_expand:
-                child = Node(next_sym, tree)
+                child = Node(next_sym,parent=tree)
                 tree.add_child(child)
+            for child in tree.children:
+                next_sym = child.symbol
                 depths.append(
                     self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output, child, counter))
         return max(depths)

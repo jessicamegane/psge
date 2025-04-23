@@ -19,9 +19,9 @@ def crossover(p1, p2):
                 mutation_probs.append(p2['mutation_probs'][index])
     mapping_values = [0] * gen_size
     # compute new individual
-    _, tree_depth, subtree_counter = grammar.mapping(genotype, mapping_values)
+    _, tree_depth, subtree_counter, tree = grammar.mapping(genotype, mapping_values)
     
     if params['ADAPTIVE_MUTATION']:
         return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'mutation_probs': mutation_probs, 'subtree_counter': subtree_counter}
     else:
-        return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'subtree_counter': subtree_counter}
+        return {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'subtree_counter': subtree_counter, 'tree': tree}

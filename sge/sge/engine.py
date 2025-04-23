@@ -8,7 +8,7 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
-from sge.operators.update import independent_update, dependent_update, subtree_dependent_update
+from sge.operators.update import independent_update, dependent_update, subtree_dependent_update, longest_common_subtree, subtree_independent_update, subtree_parent_update
 from sge.parameters import (
     params,
     set_parameters,
@@ -22,7 +22,7 @@ def generate_random_individual():
     if params['ADAPTIVE_MUTATION']:
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
     else:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'tree': None}
 
 
 def make_initial_population():
@@ -32,10 +32,11 @@ def make_initial_population():
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth, subtree_counter = grammar.mapping(ind['genotype'], mapping_values)
+    phen, tree_depth, subtree_counter, tree = grammar.mapping(ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
+    ind['tree'] = tree
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
@@ -89,6 +90,50 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             dependent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
         elif params['PROBS_UPDATE'] == 'subtree_dependent':
             subtree_dependent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        elif params['PROBS_UPDATE'] == 'common_subtree':
+            # only previous rule
+            # if not flag:
+            #     size, subtree = longest_common_subtree(best['tree'], best['tree'])
+            #     subtree_parent_update(subtree, params['LEARNING_FACTOR'],worst=True)
+            # else:
+            #     size, subtree = longest_common_subtree(best_gen['tree'], best_gen['tree'])
+            #     subtree_parent_update(subtree, params['LEARNING_FACTOR'],worst=True)
+            # flag = not flag
+
+            b1 = best['tree']
+            # print("best 1")
+            # print(best['phenotype'])
+
+            for i in range(1,10):
+                if best['phenotype'] != population[i]['phenotype']:
+                    b2 = population[i]['tree']
+                    break
+
+            # print("best 2")
+            # print(population[i]['phenotype'])
+            # print("common subtree")
+            size, subtree = longest_common_subtree(b1, b2)
+            # print(subtree)
+            # print(size)
+            # print(subtree)
+            # input()
+
+            # subtree_independent_update(subtree, params['LEARNING_FACTOR'])
+            subtree_parent_update(subtree, params['LEARNING_FACTOR'])
+
+            # get worst:
+            worst = population[-1]['tree']
+
+            for i in range(2,11):
+                if population[-1]['phenotype'] != population[-i]['phenotype']:
+                    b2 = population[-i]['tree']
+                    break
+
+            size, subtree = longest_common_subtree(worst, b2)
+            
+            subtree_parent_update(subtree, params['LEARNING_FACTOR'],worst=True)
+
+
 
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
@@ -123,11 +168,11 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         population = new_population
         it += 1
         hash_counter = grammar.get_hash_counter()
-        print(hash_counter)
-        print(len(hash_counter))
+        # print(hash_counter)
+        # print(len(hash_counter))
         # input()
-    print(grammar.get_pcfg())
-    print(hash_counter)
-    print(len(hash_counter))
+    # print(grammar.get_pcfg())
+    # print(hash_counter)
+    # print(len(hash_counter))
     # input()
 

@@ -32,7 +32,7 @@ params = {'PARAMETERS': None,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
           'LEVELS_UP': 1,
-          'LEVELS_DOWN': 3
+          'LEVELS_DOWN': 3,
           'GRAMMAR_PROBS': None,
           }
 
