@@ -30,6 +30,7 @@ params = {'PARAMETERS': None,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
+          'PROBS_UPDATE': 'standard',
           }
 
 
@@ -91,6 +92,10 @@ def set_parameters(arguments):
                         dest='GRAMMAR_PROBS',
                         type=str,
                         help='Path to json file, with list of probabilities to each production rule.')
+    parser.add_argument('--probs_update',
+                        dest='PROBS_UPDATE',
+                        type=str,
+                        help='Specifies the type of update of probabilities. Currtently is implemented \'standard\' and \'autopsge\'.')    
     parser.add_argument('--learning_factor',
                         dest='LEARNING_FACTOR',
                         type=float,

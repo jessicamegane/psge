@@ -90,6 +90,7 @@ class Grammar:
                         if left_side not in self.grammar:
                             self.grammar[left_side] = temp_productions
         
+        # self.count_max_expansions()
         self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
@@ -97,6 +98,15 @@ class Grammar:
                 self.pcfg = np.array(json.load(f))
         # self.compute_non_recursive_options()
         self.find_shortest_path()
+        #self.count_number_of_options_in_production()
+        #self.compute_count_references_to_non_terminals()
+        #print(self.number_of_references_by_non_terminal)
+        # print("GRAMMAR:\n",self.grammar)
+        DP = {}
+        #m = self.calculate_max_expansions_iterative(DP, self.start_rule, self.max_depth)
+        self.number_of_references_by_non_terminal = self.calculate_max_expansions_recursive(DP, self.start_rule, self.max_depth)
+        #print("RESULT:\n",m)
+        #input()
 
 
     def find_shortest_path(self):
@@ -167,9 +177,9 @@ class Grammar:
 
     def count_number_of_options_in_production(self):
         if self.number_of_options_by_non_terminal is None:
-            self.number_of_options_by_non_terminal = {}
+            self.number_of_options_by_non_terminal = []
             for nt in self.ordered_non_terminals:
-                self.number_of_options_by_non_terminal.setdefault(nt, len(self.grammar[nt]))
+                self.number_of_options_by_non_terminal.append(len(self.grammar[nt]))
         return self.number_of_options_by_non_terminal
 
     def list_non_recursive_productions(self, nt):
@@ -183,7 +193,7 @@ class Grammar:
         return non_recursive_elements
     
     def get_probability(self, grammar, nt_index, index):
-        return grammar[nt_index,index]
+        return grammar[nt_index][index]
         
     def get_probabilities_non_terminal(self, grammar, nt_index):
         return grammar[nt_index]
@@ -221,17 +231,17 @@ class Grammar:
                 depths.append(self.recursive_individual_creation(genome, sym[0], current_depth + 1))
         return max(depths)
 
-    def mapping(self, mapping_rules, positions_to_map=None, needs_python_filter=False):
+    def mapping(self, probs, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         output = []
-        max_depth = self._recursive_mapping(mapping_rules, positions_to_map, self.start_rule, 0, output)
+        max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, self.start_rule, 0, output)
         output = "".join(output)
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
         return output, max_depth
 
-    def _recursive_mapping(self, mapping_rules, positions_to_map, current_sym, current_depth, output):
+    def _recursive_mapping(self, probs, mapping_rules, positions_to_map, current_sym, current_depth, output):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -241,40 +251,24 @@ class Grammar:
             shortest_path = self.shortest_path[current_sym]
             nt_index = self.index_of_non_terminal[current_sym[0]]
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
+                print("positions_to_map[current_sym_pos]", positions_to_map[current_sym_pos])
+                print("mapping_rules[current_sym_pos]", mapping_rules[current_sym_pos])
+                print("alerta precisa de mais elementos no genotipo, bug agures")
+                input()
                 codon = np.random.uniform()
-                if current_depth > self.max_depth:
+                if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[nt_index,index]
+                        prob_non_recursive += self.get_probability(probs, nt_index, index)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[nt_index,index] / prob_non_recursive
-                        prob_aux += new_prob
-                        if codon <= round(prob_aux,3):
-                            expansion_possibility = index
-                            break
-                else:
-                    prob_aux = 0.0
-                    for index, option in enumerate(self.grammar[current_sym[0]]):
-                        prob_aux += self.pcfg[nt_index,index]
-                        if codon <= round(prob_aux,3):
-                            expansion_possibility = index
-                            break
-                mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
-            else:
-                # re-mapping with new probabilities                
-                codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
-                if current_depth > self.max_depth:
-                    prob_non_recursive = 0.0
-                    for rule in shortest_path[1:]:
-                        index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.pcfg[nt_index,index]
-                    prob_aux = 0.0
-                    for rule in shortest_path[1:]:
-                        index = self.grammar[current_sym[0]].index(rule)
-                        new_prob = self.pcfg[nt_index,index] / prob_non_recursive
+                        if prob_non_recursive == 0.0:
+                            new_prob = 1.0 / len(shortest_path[1:])
+                        else:
+                            new_prob = self.get_probability(probs, nt_index, index) / prob_non_recursive
+                        # new_prob = probs[nt_index][index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
@@ -282,7 +276,35 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.pcfg[nt_index,index]
+                        prob_aux += self.get_probability(probs, nt_index, index)
+                        if codon <= round(prob_aux,3):
+                            expansion_possibility = index
+                            break
+                mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
+            else:
+                # re-mapping with new probabilities                
+                codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
+                if current_depth >= (self.max_depth - shortest_path[0]):
+                    prob_non_recursive = 0.0
+                    for rule in shortest_path[1:]:
+                        index = self.grammar[current_sym[0]].index(rule)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index)
+                    prob_aux = 0.0
+                    for rule in shortest_path[1:]:
+                        index = self.grammar[current_sym[0]].index(rule)
+                        if prob_non_recursive == 0.0:
+                            new_prob = 1.0 / len(shortest_path[1:])
+                        else:
+                            new_prob = self.get_probability(probs, nt_index, index) / prob_non_recursive
+                        # new_prob = probs[nt_index][index] / prob_non_recursive
+                        prob_aux += new_prob
+                        if codon <= round(prob_aux,3):
+                            expansion_possibility = index
+                            break
+                else:
+                    prob_aux = 0.0
+                    for index in range(len(self.grammar[current_sym[0]])):
+                        prob_aux += self.get_probability(probs, nt_index, index)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -293,8 +315,9 @@ class Grammar:
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
                 depths.append(
-                    self._recursive_mapping(mapping_rules, positions_to_map, next_sym, current_depth + 1, output))
+                    self._recursive_mapping(probs, mapping_rules, positions_to_map, next_sym, current_depth + 1, output))
         return max(depths)
+
 
     def compute_non_recursive_options(self):
         for key in self.grammar.keys():
@@ -319,8 +342,145 @@ class Grammar:
     def get_pcfg(self):
         return self.pcfg
 
+    def set_pcfg(self, probs):
+        self.pcfg = probs
+    
+
     def get_shortest_path(self):
         return self.shortest_path
+
+
+    def calculate_max_expansions_recursive(self, DP, curr_symbol, curr_depth):
+        #print("Calculating max expansions for", curr_symbol, "at depth", curr_depth)
+        curr_sym,curr_nt = curr_symbol
+        if curr_nt == self.T:
+            return {}
+        if curr_depth == 0:
+            return {}
+        final_res = {}
+        if curr_sym in DP:
+            if curr_depth in DP[curr_sym]:
+                return DP[curr_sym][curr_depth]
+        for rule in self.grammar[curr_sym]:
+            rule_res = {}
+            # For each rule, we calculate the maximum expansions recursively
+            for symbol in rule:
+                sym,nt = symbol
+                if nt == self.T:
+                    continue
+                aux_res = self.calculate_max_expansions_recursive(DP, symbol, curr_depth - 1)
+                for k,v in aux_res.items():
+                    rule_res[k] = rule_res.get(k, 0) + v
+            for k,v in rule_res.items():
+                final_res[k] = max(final_res.get(k, 0), v)
+        final_res[curr_sym] = final_res.get(curr_sym, 0) + 1
+        DP[curr_sym] = DP.get(curr_sym, {})
+        DP[curr_sym][curr_depth] = final_res
+        return final_res
+
+    def calculate_max_expansions_iterative(self, grammar, max_depth):
+        """
+        Calculate an approximation of the maximum number of expansions in a tree with depth max_depth
+        using iterative dynamic programming.
+        """
+        non_terminals = list(grammar.keys())
+        
+        # dp[depth][non_terminal] = max expansions at that depth
+        dp = [{nt: 0 for nt in non_terminals} for _ in range(max_depth + 1)]
+        
+        # Base case: depth 0
+        for nt in non_terminals:
+            dp[0][nt] = 1
+        
+        # Fill the DP table iteratively
+        for depth in range(1, max_depth + 1):
+            for nt in non_terminals:
+                max_expansions = 0
+                
+                for production in grammar[nt]:  # Each production is a list of tuples
+                    current_expansions = 1
+                    
+                    for symbol in production:
+                        if symbol[1] == self.NT:  # Check if the symbol is a non-terminal
+                            current_expansions *= dp[depth - 1][symbol[0]]
+                        # Terminals (Grammar.T) contribute a factor of 1
+                    
+                    max_expansions = max(max_expansions, current_expansions)
+                
+                dp[depth][nt] = max_expansions
+        
+        return dp[max_depth]
+
+
+
+
+
+
+    def recursive_version(self, is_referenced_by, count_references_by_prod):
+        count_stuff = {}
+        count_references_in_prod = {}
+        for i in self.non_terminals:
+            count_stuff[i] = self.compute_list_size(i, is_referenced_by, count_references_by_prod, 1, self.max_depth)
+        return count_stuff
+
+    def get_total_references(self, di, nt):
+        soma = 0
+        if nt == '<start>':
+            return 1
+        for k in di[nt].keys():
+            soma += di[nt][k]
+        return soma
+
+
+    def compute_list_size(self, nt, is_referenced_by, count_references_by_prod, value, depth):
+        if depth == 0:
+            return value
+        references = self.get_total_references(count_references_by_prod, nt)
+        result = []
+        if nt == '<start>':
+            return 1
+        for ref in is_referenced_by[nt]:
+            result.append(self.compute_list_size(ref, is_referenced_by, count_references_by_prod, references, depth-1))
+        references *= max(result)
+        return references
+
+    def compute_count_references_to_non_terminals(self):
+        # TODO: fix this shitty code
+        import re
+        def natural_key(string_):
+            return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
+        g = self.grammar
+        count_references_in_prod = {}
+        is_referenced_by = {}
+        references = {}
+        temp_ordered = ordered_set.OrderedSet(sorted(list(self.ordered_non_terminals), key=natural_key))
+        for nt in temp_ordered:
+            for production in g[nt]:
+                count_temp = {}
+                for option in production:
+                    if option[1] == self.NT:
+                        is_referenced_by.setdefault(option[0], set())
+                        is_referenced_by[option[0]].add(nt)
+                        references.setdefault(nt, set())
+                        references[nt].add(option[0])
+                        count_temp.setdefault(option[0],0)
+                        count_temp[option[0]] += 1
+                for key in count_temp:
+                    count_references_in_prod.setdefault(key, {})
+                    count_references_in_prod[key].setdefault(nt, 0)
+                    count_references_in_prod[key][nt] = max(count_references_in_prod[key][nt], count_temp[key])
+        # print(is_referenced_by)
+        # print(count_references_in_prod)
+        # input()
+        self.number_of_references_by_non_terminal = self.recursive_version(is_referenced_by, count_references_in_prod)
+        # print(self.number_of_references_by_non_terminal)
+        # print("FINISH")
+        # input()
+        return self.number_of_references_by_non_terminal
+
+
+    def count_references_to_non_terminals(self):
+        return self.number_of_references_by_non_terminal
 
     @staticmethod
     def python_filter(txt, needs_python_filter):
@@ -376,6 +536,7 @@ class Grammar:
 _inst = Grammar()
 set_path = _inst.set_path
 set_pcfg_path = _inst.set_pcfg_path
+set_pcfg = _inst.set_pcfg
 read_grammar = _inst.read_grammar
 get_non_terminals = _inst.get_non_terminals
 count_number_of_options_in_production = _inst.count_number_of_options_in_production
@@ -390,6 +551,8 @@ get_non_recursive_options = _inst.get_non_recursive_options
 # compute_non_recursive_options = _inst.compute_non_recursive_options
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
+# get_max_expansions = _inst.get_max_expansions
+get_count_references_to_non_terminals = _inst.count_references_to_non_terminals
 get_probability = _inst.get_probability
 get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
 get_mask = _inst.get_mask

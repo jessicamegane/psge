@@ -12,7 +12,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 def evolution_progress(generation, pop, best, gram):
     fitness_samples = [i['fitness'] for i in pop]
-    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
+    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'],pop[0]['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
     if params['VERBOSE']:
         print(data)
     save_progress_to_file(data)
@@ -33,7 +33,7 @@ def save_progress_to_file(data):
 
 
 def save_step(generation, population):
-    c = json.dumps(population)
+    c = json.dumps(population, cls=NumpyEncoder)
     open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
 
 

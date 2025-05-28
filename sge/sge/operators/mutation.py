@@ -8,7 +8,7 @@ def mutate(p, pmutation):
     p['fitness'] = None
     pcfg = grammar.get_pcfg()
     size_of_genes = grammar.count_number_of_options_in_production()
-    mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[nt] != 1 and len(p['genotype'][index]) > 0]
+    mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[index] != 1 and len(p['genotype'][index]) > 0]
     for at_gene in mutable_genes:
         nt = list(grammar.get_non_terminals())[at_gene]
         nt_index = grammar.get_index_of_non_terminal()[nt]
@@ -38,7 +38,7 @@ def mutate(p, pmutation):
                 else:
                     prob_aux = 0.0
                     for index in range(len(grammar.get_dict()[nt])):
-                        prob_aux += pcfg[grammar.get_index_of_non_terminal()[nt],index]
+                        prob_aux += grammar.get_probability(pcfg, nt_index, index)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
