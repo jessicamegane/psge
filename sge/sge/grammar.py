@@ -251,10 +251,10 @@ class Grammar:
             shortest_path = self.shortest_path[current_sym]
             nt_index = self.index_of_non_terminal[current_sym[0]]
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
-                print("positions_to_map[current_sym_pos]", positions_to_map[current_sym_pos])
-                print("mapping_rules[current_sym_pos]", mapping_rules[current_sym_pos])
-                print("alerta precisa de mais elementos no genotipo, bug agures")
-                input()
+                # print("positions_to_map[current_sym_pos]", positions_to_map[current_sym_pos])
+                # print("mapping_rules[current_sym_pos]", mapping_rules[current_sym_pos])
+                # print("alerta precisa de mais elementos no genotipo, bug agures")
+                # input()
                 codon = np.random.uniform()
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
@@ -282,7 +282,11 @@ class Grammar:
                             break
                 mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
             else:
-                # re-mapping with new probabilities                
+                # re-mapping with new probabilities
+                # IF I START GENOTYPE WITH 0, i generate a new codon
+                # if mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][0] == -1:
+                #     codon = np.random.uniform()
+                # else:
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0

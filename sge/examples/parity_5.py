@@ -31,7 +31,7 @@ class Parity5():
             res = eval(individual, dict(zip(input_names, inpt)))
             if res == outputs[i]:
                 error -= 1
-        return (error, {})
+        return (error, {'test_error': 0.0})
 
 if __name__ == "__main__":
     import sge

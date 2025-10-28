@@ -31,6 +31,9 @@ params = {'PARAMETERS': None,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
           'PROBS_UPDATE': 'standard',
+          'TRAIN_INTERVAL': 25,
+          'BATCH_SIZE': 64,
+          'EPOCHS': 100,
           }
 
 
@@ -148,6 +151,18 @@ def set_parameters(arguments):
                         dest='VERBOSE',
                         type=strtobool,
                         help='Turns on the verbose output of the program.')
+    parser.add_argument('--train_interval',
+                        dest='TRAIN_INTERVAL',
+                        type=int,
+                        help='Specifies the interval of generations to train the model.')
+    parser.add_argument('--batch_size',
+                        dest='BATCH_SIZE',
+                        type=int,
+                        help='Specifies the batch size to train the model.')
+    parser.add_argument('--epochs',
+                        dest='EPOCHS',
+                        type=int,
+                        help='Specifies the number of epochs to train the model.')
 
     # Parse command line arguments using all above information.
     args, _ = parser.parse_known_args(arguments)

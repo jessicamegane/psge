@@ -4,12 +4,13 @@ import sge.logger as logger
 from datetime import datetime
 from tqdm import tqdm
 import copy
+import json
 import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
 from sge.operators.selection import tournament
 from sge.operators.update import independent_update
-from sge.operators.autopsge import initialize_vae, update_probs
+from sge.operators.autopsge import initialize_vae, update_probs, decode_pop
 from sge.parameters import (
     params,
     set_parameters,
@@ -22,10 +23,12 @@ def generate_random_individual(max_expansions):
         # TODO: implement multiple values of list
         # mapping_values = [0 for _ in ind['genotype']]
         genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
+        genotype = [[[-1, 0, -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
         # tree_depth = grammar.mapping_rules(genotype, mapping_values)
     else:
-        genotype = [[] for _ in grammar.get_non_terminals()]
-        tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
+        # genotype = [[] for _ in grammar.get_non_terminals()]
+        # tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
+        genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
     if params['ADAPTIVE_MUTATION']:
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : None, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
     else:
@@ -61,7 +64,10 @@ def setup(parameters_file_path = None):
     set_parameters(sys.argv[1:])
     if params['SEED'] is None:
         params['SEED'] = int(datetime.now().microsecond)
-    params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
+    if params['PROBS_UPDATE'] == 'autoPSGE':
+        params['EXPERIMENT_NAME'] += "/train" + str(params['TRAIN_INTERVAL']) + "_runs15k_epoch" + str(params['EPOCHS']) + "_batch" + str(params['BATCH_SIZE'])
+    else:
+        params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
 
     logger.prepare_dumps()
     np.random.seed(int(params['SEED']))
@@ -81,7 +87,32 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         if i['fitness'] is None:
             evaluate(i, evaluation_function)
     if params['PROBS_UPDATE'] == 'autoPSGE':
-        vae = initialize_vae(population, grammar.count_number_of_options_in_production())
+        # population.sort(key=lambda x: x['fitness'])
+        # fitness_samples = [i['fitness'] for i in population]
+
+        # initialize VAE and TRAIN
+        train_pop = json.load(open("genotypes_5parity.json", 'r'))
+        vae = initialize_vae(train_pop, grammar.count_number_of_options_in_production(), population)
+        del train_pop
+
+        # vae, new_pop = test_vae(vae, population)
+        # new_pop = decode_pop(vae, population)
+
+        # for i in tqdm(new_pop):
+        #     if i['fitness'] is None:
+        #         evaluate(i, evaluation_function)
+        # print(s)
+        # print("AFTER VAE")
+        # fitness_samples = [i['fitness'] for i in new_pop]
+        # print("old best", new_pop[0]['fitness'])
+        # new_pop.sort(key=lambda x: x['fitness'])
+        # print("new best", new_pop[0]['fitness'])
+        # print("mean", np.nanmean(fitness_samples))
+        # print("std", np.nanstd(fitness_samples))
+        # print("best phenotype", new_pop[0]['phenotype'])
+        # # print("best genotype", new_pop[0]['genotype'])
+        
+        
     while it <= params['GENERATIONS']:        
 
         population.sort(key=lambda x: x['fitness'])
@@ -109,7 +140,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             # print("before")
             # print(grammar.get_pcfg())
             # print('before update')
-            vae, probs = update_probs(it, vae, population, grammar.count_number_of_options_in_production())
+            g = grammar.get_pcfg()
+            vae, probs = update_probs(it, g, vae, population, grammar.count_number_of_options_in_production())
             # print(population[0]['probabilities'])
             # print("after")
             # print(probs)
