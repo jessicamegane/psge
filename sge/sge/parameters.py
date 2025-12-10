@@ -30,6 +30,8 @@ params = {'PARAMETERS': None,
           'PROB_MUTATION_PROBS': 0.3,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
+          'N_BEST': 1,
+          'SEARCH_STRATEGY': 'standard'
           }
 
 
@@ -87,6 +89,10 @@ def set_parameters(arguments):
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
+    parser.add_argument('--search_strategy',
+                        dest='SEARCH_STRATEGY',
+                        type=str,
+                        help='Search strategy: eda, var.operators.')
     parser.add_argument('--grammar_probs',
                         dest='GRAMMAR_PROBS',
                         type=str,
@@ -95,6 +101,10 @@ def set_parameters(arguments):
                         dest='LEARNING_FACTOR',
                         type=float,
                         help='Specifies the value of the learning factor used to update the probabilities.')
+    parser.add_argument('--n_best',
+                        dest='N_BEST',
+                        type=int,
+                        help='Specifies the number of individuals to consider in the update of probabilities.')
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
                         type=strtobool,

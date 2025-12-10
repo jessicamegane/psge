@@ -16,23 +16,23 @@ from sge.parameters import (
 )
 
 
-def generate_random_individual():
+def generate_random_individual(pcfg):
     genotype = [[] for _ in grammar.get_non_terminals()]
-    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
+    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, pcfg)
     if params['ADAPTIVE_MUTATION']:
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
     else:
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
 
 
-def make_initial_population():
-    for i in range(params['POPSIZE']):
-        yield generate_random_individual()
+def make_initial_population(pop_size=params['POPSIZE'],pcfg=None):
+    for i in range(pop_size):
+        yield generate_random_individual(pcfg)
 
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth = grammar.mapping(ind['genotype'], mapping_values)
+    phen, tree_depth = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
@@ -52,9 +52,9 @@ def setup(parameters_file_path = None):
     logger.prepare_dumps()
     np.random.seed(int(params['SEED']))
     grammar.set_path(params['GRAMMAR'])
-    grammar.read_grammar()
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
+    grammar.read_grammar()
 
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
@@ -76,10 +76,11 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             best = copy.deepcopy(population[0])
      
         if not flag:
-            independent_update(best, params['LEARNING_FACTOR'])
+            independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
         else:
-            independent_update(best_gen, params['LEARNING_FACTOR'])
+            independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
         flag = not flag
+        # independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
 
         if params['ADAPTIVE_LF']:
             params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
@@ -87,32 +88,50 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
      
         logger.evolution_progress(it, population, best, grammar.get_pcfg())
 
-        new_population = []
-        while len(new_population) < params['POPSIZE'] - params['ELITISM']:
-            if np.random.uniform() < params['PROB_CROSSOVER']:
-                p1 = tournament(population, params['TSIZE'])
-                p2 = tournament(population, params['TSIZE'])
-                ni = crossover(p1, p2)
-            else:
-                ni = tournament(population, params['TSIZE'])
-            if params['ADAPTIVE_MUTATION']:
-                # if we want to use Adaptive Facilitated Mutation
-                ni = mutation_prob_mutation(ni)
-                ni = mutate_level(ni)
-            else:
-                ni = mutate(ni, params['PROB_MUTATION'])                
-            new_population.append(ni)
+        if params['SEARCH_STRATEGY'] == 'eda':
+            new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM'], grammar.get_pcfg()))
 
-        for i in tqdm(new_population):
-            evaluate(i, evaluation_function)
-        new_population.sort(key=lambda x: x['fitness'])
-        # best individual from the current generation
-        best_gen = copy.deepcopy(new_population[0])
-
-        if params['REMAP']:
-            for i in tqdm(population[:params['ELITISM']]):
+            # new_population += population[:params['ELITISM']]
+            for i in tqdm(new_population):
                 evaluate(i, evaluation_function)
-        new_population += population[:params['ELITISM']]
+            new_population.sort(key=lambda x: x['fitness'])
+            # best individual from the current generation
+            best_gen = copy.deepcopy(new_population[0])
+
+            if params['REMAP']:
+                for i in tqdm(population[:params['ELITISM']]):
+                    evaluate(i, evaluation_function)
+            new_population += population[:params['ELITISM']]
+
+        else:
+            new_population = []
+            # new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM'], grammar.get_pcfg()))
+            while len(new_population) < params['POPSIZE'] - params['ELITISM']:
+                if np.random.uniform() < params['PROB_CROSSOVER']:
+                    p1 = tournament(population, params['TSIZE'])
+                    p2 = tournament(population, params['TSIZE'])
+                    ni = crossover(p1, p2, grammar.get_pcfg())
+                else:
+                    ni = tournament(population, params['TSIZE'])
+                if params['ADAPTIVE_MUTATION']:
+                    # if we want to use Adaptive Facilitated Mutation
+                    ni = mutation_prob_mutation(ni)
+                    ni = mutate_level(ni)
+                else:
+                    ni = mutate(ni, params['PROB_MUTATION'])                
+                new_population.append(ni)
+
+            # new_population += population[:params['ELITISM']]
+            for i in tqdm(new_population):
+                evaluate(i, evaluation_function)
+            new_population.sort(key=lambda x: x['fitness'])
+            # best individual from the current generation
+            best_gen = copy.deepcopy(new_population[0])
+
+            if params['REMAP']:
+                for i in tqdm(population[:params['ELITISM']]):
+                    evaluate(i, evaluation_function)
+            new_population += population[:params['ELITISM']]
 
         population = new_population
         it += 1
