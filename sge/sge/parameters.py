@@ -23,6 +23,7 @@ params = {'PARAMETERS': None,
           'SAVE_STEP': 1,
           'VERBOSE': True,
           'LEARNING_FACTOR': 0.01,
+          'N_BEST': 1,
           'ADAPTIVE_LF': False,
           'ADAPTIVE_INCREMENT': 0.0001,
           'REMAP': True,
@@ -95,6 +96,10 @@ def set_parameters(arguments):
                         dest='LEARNING_FACTOR',
                         type=float,
                         help='Specifies the value of the learning factor used to update the probabilities.')
+    parser.add_argument('--n_best',
+                        dest='N_BEST',
+                        type=int,
+                        help='Specifies the number of best individuals to be used in the update mechanism.')
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
                         type=strtobool,
