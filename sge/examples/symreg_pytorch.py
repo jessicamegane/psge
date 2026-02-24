@@ -156,7 +156,6 @@ class SymbolicRegression():
 
         return pred_error
 
-
     def evaluate(self, individual):
         error = 0.0
         test_error = 0.0
