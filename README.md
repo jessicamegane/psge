@@ -65,6 +65,8 @@ python3 -m examples.symreg --grammar grammars/regression.pybnf --parameters para
 
 ### Command Line Arguments
 
+| Argument | Type | Description |
+| --- | --- | --- |
 | --parameters | str | YAML parameters file (must include extension) | 
 | --grammar | str | Path to grammar file (required) |
 | --popsize | int | Population size |
