@@ -18,7 +18,7 @@ from sge.parameters import (
 
 def generate_random_individual():
     genotype = [[] for _ in grammar.get_non_terminals()]
-    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0)
+    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, grammar.get_pcfg())
     if params['ADAPTIVE_MUTATION']:
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
     else:
@@ -32,13 +32,14 @@ def make_initial_population():
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth = grammar.mapping(ind['genotype'], mapping_values)
+    phen, tree_depth, grammar_counter = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
+    ind['grammar_counter'] = grammar_counter
 
 
 def setup(parameters_file_path = None):
@@ -52,9 +53,9 @@ def setup(parameters_file_path = None):
     logger.prepare_dumps()
     np.random.seed(int(params['SEED']))
     grammar.set_path(params['GRAMMAR'])
-    grammar.read_grammar()
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
+    grammar.read_grammar()
 
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
@@ -72,20 +73,20 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         # best individual overall
         if not best:
             best = copy.deepcopy(population[0])
+            best_gen = copy.deepcopy(best)
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
      
         if not flag:
-            independent_update(best, params['LEARNING_FACTOR'])
+            independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
         else:
-            independent_update(best_gen, params['LEARNING_FACTOR'])
+            independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
         flag = not flag
 
         if params['ADAPTIVE_LF']:
             params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
 
-     
-        logger.evolution_progress(it, population, best, grammar.get_pcfg())
+        logger.evolution_progress(it, population, best, best_gen, grammar.get_pcfg())
 
         new_population = []
         while len(new_population) < params['POPSIZE'] - params['ELITISM']:
