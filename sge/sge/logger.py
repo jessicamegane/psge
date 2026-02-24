@@ -9,23 +9,49 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+    
+def calculate_unique_percentage(population_phenotypes):
+    unique_count = len(set(population_phenotypes))
+    total_count = len(population_phenotypes)
+    return (unique_count / total_count) * 100 if total_count > 0 else 0
 
-def evolution_progress(generation, pop, best, gram):
+def evolution_progress(generation, pop, best, best_gen, gram):
     fitness_samples = [i['fitness'] for i in pop]
-    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e' % (generation, best['fitness'], np.mean(fitness_samples), np.std(fitness_samples), best['other_info']['test_error'])
+    test_error_samples = [i['other_info']['test_error'] for i in pop]
+    depth_samples = [i['tree_depth'] for i in pop]
+    length_genotype_best = sum(len(i) for i in best['genotype'])
+    phenotypes = [i['phenotype'] for i in pop]
+    unique_percentage = calculate_unique_percentage(phenotypes)
+
+    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.2f' % (
+        generation,
+        best['fitness'],
+        best_gen['fitness'],
+        np.nanmean(fitness_samples),
+        np.nanstd(fitness_samples),
+        best.get('other_info', {}).get('test_error', np.nan),  # safe access
+        np.nanmean(test_error_samples),
+        np.nanstd(test_error_samples),
+        best['tree_depth'],
+        np.nanmean(depth_samples),
+        np.nanmedian(depth_samples),
+        length_genotype_best,
+        unique_percentage
+    )
+
     if params['VERBOSE']:
         print(data)
+
     save_progress_to_file(data)
+
     if generation % params['SAVE_STEP'] == 0:
         save_step(generation, pop)
-    # save probabilities
-    to_save = []
-    to_save.append({"grammar": gram})
-    folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
-    if not os.path.exists(folder):
-        os.makedirs(folder,  exist_ok=True)
-    open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
+    grammar_data = {"generation": generation, "grammar": gram}
+
+    with open('%s/run_%d/grammar_probabilities.json' % (params['EXPERIMENT_NAME'],params['RUN']), 'a') as f:
+        json.dump(grammar_data, f, cls=NumpyEncoder)
+        f.write(',\n')
 
 def save_progress_to_file(data):
     with open('%s/run_%d/progress_report.csv' % (params['EXPERIMENT_NAME'], params['RUN']), 'a') as f:
