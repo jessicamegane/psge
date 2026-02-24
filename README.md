@@ -139,8 +139,8 @@ For questions or suggestions, contact:
 
 - Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Neill, M. (2017). **PonyGE2: Grammatical Evolution in Python**. arXiv preprint, arXiv:1703.08535.
 
-Lourenço, N., Assunção, F., Pereira, F. B., Costa, E., and Machado, P.. **Structured Grammatical Evolution: A Dynamic Approach**. In Handbook of Grammatical Evolution. Springer Int, 2018.
+- Lourenço, N., Assunção, F., Pereira, F. B., Costa, E., and Machado, P.. **Structured Grammatical Evolution: A Dynamic Approach**. In Handbook of Grammatical Evolution. Springer Int, 2018.
 
-Mégane, J., Lourenço, N., and Machado, P.. **Probabilistic Grammatical Evolution**. In Genetic Programming, Ting Hu, Nuno Lourenço, and Eric Medvet (Eds.). Springer International Publishing, Cham, 198–213, 2021.
+- Mégane, J., Lourenço, N., and Machado, P.. **Probabilistic Grammatical Evolution**. In Genetic Programming, Ting Hu, Nuno Lourenço, and Eric Medvet (Eds.). Springer International Publishing, Cham, 198–213, 2021.
 
-Carvalho, P., Mégane, J., Lourenço, N., Machado, P. (2023). **Context Matters: Adaptive Mutation for Grammars**. In: Pappa, G., Giacobini, M., Vasicek, Z. (eds) Genetic Programming. EuroGP 2023. Lecture Notes in Computer Science, vol 13986. Springer, Cham.
+- Carvalho, P., Mégane, J., Lourenço, N., Machado, P. (2023). **Context Matters: Adaptive Mutation for Grammars**. In: Pappa, G., Giacobini, M., Vasicek, Z. (eds) Genetic Programming. EuroGP 2023. Lecture Notes in Computer Science, vol 13986. Springer, Cham.
