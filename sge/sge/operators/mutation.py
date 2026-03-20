@@ -55,12 +55,12 @@ def mutate_level(p):
         nt = list(grammar.get_non_terminals())[at_gene]
         temp = p['mapping_values']
         mapped = temp[at_gene]
+        nt_index = grammar.get_index_of_non_terminal()[nt]
         for position_to_mutate in range(0, mapped):
             if np.random.uniform() < pmutation[at_gene]:
                 current_value = p['genotype'][at_gene][position_to_mutate]
                 current_depth = current_value[2]
                 shortest_path = grammar.get_shortest_path()[(nt,'NT')]
-                nt_index = grammar.get_index_of_non_terminal()[nt]
                 # codon = random.random()
                 # gaussian mutation
                 codon = np.clip(np.random.normal(current_value[1], 0.5), 0.0, 1.0)

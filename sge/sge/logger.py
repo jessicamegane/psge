@@ -19,7 +19,7 @@ def evolution_progress(generation, pop, best, best_gen, gram):
     fitness_samples = [i['fitness'] for i in pop]
     test_error_samples = [i['other_info']['test_error'] for i in pop]
     depth_samples = [i['tree_depth'] for i in pop]
-    length_genotype_best = sum(len(i) for i in best['genotype'])
+    length_used_genotype_best = sum(i for i in best['mapping_values'])
     phenotypes = [i['phenotype'] for i in pop]
     unique_percentage = calculate_unique_percentage(phenotypes)
 
@@ -35,7 +35,7 @@ def evolution_progress(generation, pop, best, best_gen, gram):
         best['tree_depth'],
         np.nanmean(depth_samples),
         np.nanmedian(depth_samples),
-        length_genotype_best,
+        length_used_genotype_best,
         unique_percentage
     )
 
