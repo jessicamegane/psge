@@ -50,7 +50,7 @@ class Dataset():
 
 
 class SymbolicRegression():
-    def __init__(self, function="pagiepolynomial", has_test_set=False, invalid_fitness=9999999):
+    def __init__(self, function="nguyen5polynomial", has_test_set=False, invalid_fitness=9999999):
         self.__train_set = []
         self.__test_set = None
         self.__invalid_fitness = invalid_fitness
@@ -71,8 +71,23 @@ class SymbolicRegression():
         def quarticpolynomial(inp):
             return pow(inp,4) + pow(inp,3) + pow(inp,2) + inp
 
-        def kozapolynomial(inp):
+        def koza2polynomial(inp):
+            return pow(inp,5) - (2 * pow(inp,3)) + inp
+
+        def koza3polynomial(inp):
             return pow(inp,6) - (2 * pow(inp,4)) + pow(inp,2)
+
+        def nguyen1polynomial(inp):
+            return pow(inp,3) - pow(inp,2) + inp
+        
+        def nguyen4polynomial(inp):
+            return pow(inp,6) + pow(inp,5) + pow(inp,4) + pow(inp,3) + pow(inp,2) + inp
+        
+        def nguyen5polynomial(inp):
+            return node_mul(node_sin(pow(inp,2)),node_cos(inp)) - 1
+
+        def nguyen6polynomial(inp):
+            return node_sin(inp) + node_sin(inp + pow(inp,2))
 
         def pagiepolynomial(inp1,inp2):
             return 1.0 / (1 + pow(inp1,-4.0)) + 1.0 / (1 + pow(inp2,-4))
@@ -107,6 +122,70 @@ class SymbolicRegression():
             l = []
             for xx in drange(-1,1.1,0.1):
                 yy = quarticpolynomial(xx)
+                l.append([xx,yy])
+
+            self.__train_set = Dataset(l, "train")
+            self.training_set_size = len(l)
+            if self.has_test_set:
+                xx = list(drange(-1,1.1,0.1))
+                function = eval(self.function)
+                yy = map(function, xx)
+
+                self.__test_set = [xx,yy]
+                self.test_set_size = len(self.__test_set)
+        elif self.function in ["koza2"]:
+            function = eval(self.function)
+            l = []
+            for xx in drange(-1,1.1,0.1):
+                yy = koza2polynomial(xx)
+                l.append([xx,yy])
+
+            self.__train_set = Dataset(l, "train")
+            self.training_set_size = len(l)
+            if self.has_test_set:
+                xx = list(drange(-1,1.1,0.1))
+                function = eval(self.function)
+                yy = map(function, xx)
+
+                self.__test_set = [xx,yy]
+                self.test_set_size = len(self.__test_set)
+        elif self.function in ["koza3"]:
+            function = eval(self.function)
+            l = []
+            for xx in drange(-1,1.1,0.1):
+                yy = koza3polynomial(xx)
+                l.append([xx,yy])
+
+            self.__train_set = Dataset(l, "train")
+            self.training_set_size = len(l)
+            if self.has_test_set:
+                xx = list(drange(-1,1.1,0.1))
+                function = eval(self.function)
+                yy = map(function, xx)
+
+                self.__test_set = [xx,yy]
+                self.test_set_size = len(self.__test_set)
+        elif self.function in ["nguyen4polynomial"]:
+            function = eval(self.function)
+            l = []
+            for xx in drange(-1,1.1,0.1):
+                yy = nguyen4polynomial(xx)
+                l.append([xx,yy])
+
+            self.__train_set = Dataset(l, "train")
+            self.training_set_size = len(l)
+            if self.has_test_set:
+                xx = list(drange(-1,1.1,0.1))
+                function = eval(self.function)
+                yy = map(function, xx)
+
+                self.__test_set = [xx,yy]
+                self.test_set_size = len(self.__test_set)
+        elif self.function in ["nguyen5polynomial"]:
+            function = eval(self.function)
+            l = []
+            for xx in drange(-1,1.1,0.1):
+                yy = nguyen5polynomial(xx)
                 l.append([xx,yy])
 
             self.__train_set = Dataset(l, "train")
@@ -177,5 +256,9 @@ class SymbolicRegression():
 
 if __name__ == "__main__":
     import sge
-    eval_func = SymbolicRegression()
+    import sys
+    # read first argument
+    function = sys.argv[1] if len(sys.argv) > 1 else "nguyen5polynomial"
+    print("Running symbolic regression for function: %s" % function)
+    eval_func = SymbolicRegression(function=function)
     sge.evolutionary_algorithm(evaluation_function=eval_func, parameters_file="parameters/standard.yml")
