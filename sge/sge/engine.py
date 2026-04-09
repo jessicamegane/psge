@@ -6,7 +6,7 @@ from tqdm import tqdm
 import copy
 import numpy as np
 from sge.operators.recombination import crossover
-from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation
+from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation, mutate_100
 from sge.operators.selection import tournament
 from sge.operators.update import independent_update
 from sge.parameters import (
@@ -15,30 +15,38 @@ from sge.parameters import (
     load_parameters
 )
 
-
-def generate_random_individual(pcfg):
-    genotype = [[] for _ in grammar.get_non_terminals()]
-    tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, pcfg)
-    if params['ADAPTIVE_MUTATION']:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
+def generate_random_individual(max_expansions):
+    if params['GENOTYPE_INIT'] == 'fixed':
+        # TODO: implement multiple values of list
+        # genotype = [[[-1, 0, -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
+        genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
+        # tree_depth = grammar.mapping_rules(genotype, mapping_values)
     else:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : tree_depth}
+        genotype = [[] for _ in grammar.get_non_terminals()]
+        # tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, grammar.get_pcfg())
+        # genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
+    if params['ADAPTIVE_MUTATION']:
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : None, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
+    else:
+        return {'genotype': genotype, 'fitness': None, 'tree_depth' : None}
 
 
-def make_initial_population(pop_size=params['POPSIZE'],pcfg=None):
+def make_initial_population(pop_size=params['POPSIZE']):
+    count = grammar.get_count_references_to_non_terminals()
     for i in range(pop_size):
-        yield generate_random_individual(pcfg)
+        yield generate_random_individual(count)
 
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
+    phen, tree_depth, gram_counter = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
+    ind['grammar_counter'] = gram_counter
 
 
 def setup(parameters_file_path = None):
@@ -66,32 +74,36 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     for i in tqdm(population):
         if i['fitness'] is None:
             evaluate(i, evaluation_function)
+    previous_population = copy.deepcopy(population)
     while it <= params['GENERATIONS']:        
 
         population.sort(key=lambda x: x['fitness'])
+
         # best individual overall
         if not best:
             best = copy.deepcopy(population[0])
+            best_gen = copy.deepcopy(best)
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
      
-        if not flag:
-            independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
-        else:
-            independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
-        flag = not flag
-        # independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        if params['LEARNING_STRATEGY'] == "independent":
 
-        if params['ADAPTIVE_LF']:
-            params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
+            if not flag:
+                independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+            else:
+                independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
+            flag = not flag
+            # independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+
+            if params['ADAPTIVE_LF']:
+                params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
 
      
-        logger.evolution_progress(it, population, best, grammar.get_pcfg())
+        logger.evolution_progress(it, population, best, best_gen, grammar.get_pcfg(),previous_population)
 
-        if params['SEARCH_STRATEGY'] == 'eda':
-            new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM'], grammar.get_pcfg()))
+        if params['SEARCH_STRATEGY'] == 'eda' or (params['SEARCH_STRATEGY'] == 'hybrid' and it % 2 == 0):
+            new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM']))
 
-            # new_population += population[:params['ELITISM']]
             for i in tqdm(new_population):
                 evaluate(i, evaluation_function)
             new_population.sort(key=lambda x: x['fitness'])
@@ -105,12 +117,11 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
 
         else:
             new_population = []
-            # new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM'], grammar.get_pcfg()))
             while len(new_population) < params['POPSIZE'] - params['ELITISM']:
                 if np.random.uniform() < params['PROB_CROSSOVER']:
                     p1 = tournament(population, params['TSIZE'])
                     p2 = tournament(population, params['TSIZE'])
-                    ni = crossover(p1, p2, grammar.get_pcfg())
+                    ni = crossover(p1, p2)
                 else:
                     ni = tournament(population, params['TSIZE'])
                 if params['ADAPTIVE_MUTATION']:
@@ -118,7 +129,8 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                     ni = mutation_prob_mutation(ni)
                     ni = mutate_level(ni)
                 else:
-                    ni = mutate(ni, params['PROB_MUTATION'])                
+                    ni = mutate_100(ni, params['PROB_MUTATION'], params['MUTATION_STD'])
+                    # ni = mutate(ni, params['PROB_MUTATION'], params['MUTATION_STD'])              
                 new_population.append(ni)
 
             # new_population += population[:params['ELITISM']]
@@ -133,6 +145,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                     evaluate(i, evaluation_function)
             new_population += population[:params['ELITISM']]
 
+        previous_population = copy.deepcopy(population)
         population = new_population
         it += 1
 

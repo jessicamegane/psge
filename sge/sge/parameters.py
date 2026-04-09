@@ -12,6 +12,7 @@ params = {'PARAMETERS': None,
           'ELITISM': 10,                    # number of individuals that survive
           'PROB_CROSSOVER': 0.9,
           'PROB_MUTATION': 0.1,
+          'MUTATION_STD': 0.5,
           'TSIZE': 3,
           'MIN_TREE_DEPTH': 6,
           'MAX_TREE_DEPTH': 17,
@@ -31,7 +32,9 @@ params = {'PARAMETERS': None,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
           'N_BEST': 1,
-          'SEARCH_STRATEGY': 'standard'
+          'SEARCH_STRATEGY': 'standard',
+          'LEARNING_STRATEGY': "independent",
+          'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
           }
 
 
@@ -73,6 +76,10 @@ def set_parameters(arguments):
                         dest='PROB_MUTATION',
                         type=float,
                         help='Specifies the probability of mutation usage. Float required')
+    parser.add_argument('--mutation_std',
+                        dest='MUTATION_STD',
+                        type=float,
+                        help='Specifies the standard deviation for mutation. Float required')
     parser.add_argument('--tsize',
                         dest='TSIZE',
                         type=int,
@@ -85,10 +92,18 @@ def set_parameters(arguments):
                         dest='MAX_TREE_DEPTH',
                         type=int,
                         help='Specify the initialisation tree depth.')
+    parser.add_argument('--genotype_init',
+                        dest='GENOTYPE_INIT',
+                        type=str,
+                        help='Specifies the method for generating the initial genotype: fixed or dynamic.')
     parser.add_argument('--grammar',
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
+    parser.add_argument('--learning_strategy',
+                        dest='LEARNING_STRATEGY',
+                        type=str,
+                        help='Specifies the learning strategy to be used. Options: independent, other.')
     parser.add_argument('--search_strategy',
                         dest='SEARCH_STRATEGY',
                         type=str,
