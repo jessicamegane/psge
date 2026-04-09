@@ -97,6 +97,7 @@ class Grammar:
                 self.pcfg = np.array(json.load(f))
         # self.compute_non_recursive_options()
         self.find_shortest_path()
+        self.number_of_references_by_non_terminal = self.calculate_max_expansions_recursive({}, self.start_rule, self.max_depth)
 
 
     def find_shortest_path(self):
@@ -227,14 +228,15 @@ class Grammar:
     def mapping(self, probs, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
+        gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
         output = []
-        max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, self.start_rule, 0, output)
+        max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, self.start_rule, 0, output)
         output = "".join(output)
         if self.grammar_file.endswith("pybnf"):
             output = self.python_filter(output, needs_python_filter)
-        return output, max_depth
+        return output, max_depth, gram_counter
 
-    def _recursive_mapping(self, probs, mapping_rules, positions_to_map, current_sym, current_depth, output):
+    def _recursive_mapping(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -245,9 +247,6 @@ class Grammar:
             nt_index = self.index_of_non_terminal[current_sym[0]]
             # print("mapping rules", mapping_rules)
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
-                # print("positions_to_map[current_sym_pos]", positions_to_map[current_sym_pos])
-                # print("mapping_rules[current_sym_pos]", mapping_rules[current_sym_pos])
-                # input()
                 codon = np.random.uniform()
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
@@ -276,7 +275,7 @@ class Grammar:
                 mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
             else:
                 # re-mapping with new probabilities
-                # IF I START GENOTYPE WITH 0, i generate a new codon
+                # IF I START GENOTYPE WITH -1, i generate a new codon
                 # if mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][0] == -1:
                 #     codon = np.random.uniform()
                 # else:
@@ -307,12 +306,13 @@ class Grammar:
                             break
             # update mapping rules com a updated expansion possibility
             mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
+            gram_counter[current_sym_pos][expansion_possibility] += 1   
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices[current_production]
             for next_sym in next_to_expand:
                 depths.append(
-                    self._recursive_mapping(probs, mapping_rules, positions_to_map, next_sym, current_depth + 1, output))
+                    self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, next_sym, current_depth + 1, output))
         return max(depths)
 
     def compute_non_recursive_options(self):
@@ -340,6 +340,73 @@ class Grammar:
 
     def get_shortest_path(self):
         return self.shortest_path
+    
+
+    def calculate_max_expansions_recursive(self, DP, curr_symbol, curr_depth):
+        #print("Calculating max expansions for", curr_symbol, "at depth", curr_depth)
+        curr_sym,curr_nt = curr_symbol
+        if curr_nt == self.T:
+            return {}
+        if curr_depth == 0:
+            return {}
+        final_res = {}
+        if curr_sym in DP:
+            if curr_depth in DP[curr_sym]:
+                return DP[curr_sym][curr_depth]
+        for rule in self.grammar[curr_sym]:
+            rule_res = {}
+            # For each rule, we calculate the maximum expansions recursively
+            for symbol in rule:
+                sym,nt = symbol
+                if nt == self.T:
+                    continue
+                aux_res = self.calculate_max_expansions_recursive(DP, symbol, curr_depth - 1)
+                for k,v in aux_res.items():
+                    rule_res[k] = rule_res.get(k, 0) + v
+            for k,v in rule_res.items():
+                final_res[k] = max(final_res.get(k, 0), v)
+        final_res[curr_sym] = final_res.get(curr_sym, 0) + 1
+        DP[curr_sym] = DP.get(curr_sym, {})
+        DP[curr_sym][curr_depth] = final_res
+        return final_res
+
+    def calculate_max_expansions_iterative(self, grammar, max_depth):
+        """
+        Calculate an approximation of the maximum number of expansions in a tree with depth max_depth
+        using iterative dynamic programming.
+        """
+        non_terminals = list(grammar.keys())
+        
+        # dp[depth][non_terminal] = max expansions at that depth
+        dp = [{nt: 0 for nt in non_terminals} for _ in range(max_depth + 1)]
+        
+        # Base case: depth 0
+        for nt in non_terminals:
+            dp[0][nt] = 1
+        
+        # Fill the DP table iteratively
+        for depth in range(1, max_depth + 1):
+            for nt in non_terminals:
+                max_expansions = 0
+                
+                for production in grammar[nt]:  # Each production is a list of tuples
+                    current_expansions = 1
+                    
+                    for symbol in production:
+                        if symbol[1] == self.NT:  # Check if the symbol is a non-terminal
+                            current_expansions *= dp[depth - 1][symbol[0]]
+                        # Terminals (Grammar.T) contribute a factor of 1
+                    
+                    max_expansions = max(max_expansions, current_expansions)
+                
+                dp[depth][nt] = max_expansions
+        
+        return dp[max_depth]
+
+    
+    def count_references_to_non_terminals(self):
+        return self.number_of_references_by_non_terminal
+
 
     @staticmethod
     def python_filter(txt, needs_python_filter):
@@ -407,6 +474,7 @@ set_min_init_tree_depth = _inst.set_min_init_tree_depth
 get_max_depth = _inst.get_max_depth
 get_non_recursive_options = _inst.get_non_recursive_options
 # compute_non_recursive_options = _inst.compute_non_recursive_options
+get_count_references_to_non_terminals = _inst.count_references_to_non_terminals
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
 get_probability = _inst.get_probability
