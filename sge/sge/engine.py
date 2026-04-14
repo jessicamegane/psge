@@ -31,7 +31,7 @@ def generate_random_individual(max_expansions):
         return {'genotype': genotype, 'fitness': None, 'tree_depth' : None}
 
 
-def make_initial_population(pop_size=params['POPSIZE']):
+def make_initial_population(pop_size):
     count = grammar.get_count_references_to_non_terminals()
     for i in range(pop_size):
         yield generate_random_individual(count)
@@ -67,7 +67,7 @@ def setup(parameters_file_path = None):
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
     setup(parameters_file_path=parameters_file)
-    population = list(make_initial_population())
+    population = list(make_initial_population(params['POPSIZE']))
     flag = False    # alternate False - best overall
     best = None
     it = 0
@@ -129,7 +129,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                     ni = mutation_prob_mutation(ni)
                     ni = mutate_level(ni)
                 else:
-                    ni = mutate_100(ni, params['PROB_MUTATION'], params['MUTATION_STD'])
+                    ni = mutate_100(ni, params['PROB_MUTATION'])
                     # ni = mutate(ni, params['PROB_MUTATION'], params['MUTATION_STD'])              
                 new_population.append(ni)
 
