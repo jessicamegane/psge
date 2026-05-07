@@ -1,0 +1,18 @@
+[project]
+name = "psge-req"
+version = "0.1.0"
+description = "PSGE requirements for reproducibility"
+authors = [
+    {name = "jessicamegane",email = "jessicac@dei.uc.pt"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "torch",
+    "pyyaml",
+    "tqdm",
+    "matplotlib",
+    "plotly"
+]
