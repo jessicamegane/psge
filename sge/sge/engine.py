@@ -8,9 +8,10 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation, mutate_100
 from sge.operators.selection import tournament
-from sge.operators.update import independent_update
+from sge.operators.update import update_distributions
 from sge.parameters import (
     params,
+    SearchStrategy,
     set_parameters,
     load_parameters
 )
@@ -33,7 +34,7 @@ def generate_random_individual(max_expansions):
 
 def make_initial_population(pop_size):
     count = grammar.get_count_references_to_non_terminals()
-    for i in range(pop_size):
+    for _ in range(pop_size):
         yield generate_random_individual(count)
 
 
@@ -62,7 +63,7 @@ def setup(parameters_file_path = None):
     grammar.set_path(params['GRAMMAR'])
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
-    grammar.read_grammar()
+    grammar.read_grammar(params['LEARNING_STRATEGY'])
 
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
@@ -85,23 +86,27 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
             best_gen = copy.deepcopy(best)
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
+
+
+        update_distributions(params['LEARNING_STRATEGY'], [best_gen] + population, params['LEARNING_FACTOR'], params['N_BEST'])
+        
      
-        if params['LEARNING_STRATEGY'] == "independent":
+        # if params['LEARNING_STRATEGY'] == "independent":
 
-            if not flag:
-                independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
-            else:
-                independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
-            flag = not flag
-            # independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        #     if not flag:
+        #         independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
+        #     else:
+        #         independent_update([best_gen]+population, params['LEARNING_FACTOR'], params['N_BEST'])
+        #     flag = not flag
+        #     # independent_update(population, params['LEARNING_FACTOR'], params['N_BEST'])
 
-            if params['ADAPTIVE_LF']:
-                params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
+        #     if params['ADAPTIVE_LF']:
+        #         params['LEARNING_FACTOR'] += params['ADAPTIVE_INCREMENT']
 
      
         logger.evolution_progress(it, population, best, best_gen, grammar.get_pcfg(),previous_population)
 
-        if params['SEARCH_STRATEGY'] == 'eda' or (params['SEARCH_STRATEGY'] == 'hybrid' and it % 2 == 0):
+        if params['SEARCH_STRATEGY'] == SearchStrategy.EDA or (params['SEARCH_STRATEGY'] == SearchStrategy.HYBRID and it % 2 == 0):
             new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM']))
 
             for i in tqdm(new_population):
@@ -125,12 +130,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                 else:
                     ni = tournament(population, params['TSIZE'])
                 if params['ADAPTIVE_MUTATION']:
-                    # if we want to use Adaptive Facilitated Mutation
+                    # Adaptive Facilitated Mutation
                     ni = mutation_prob_mutation(ni)
                     ni = mutate_level(ni)
                 else:
-                    ni = mutate_100(ni, params['PROB_MUTATION'])
-                    # ni = mutate(ni, params['PROB_MUTATION'], params['MUTATION_STD'])              
+                    ni = mutate(ni, params['PROB_MUTATION'])
+
                 new_population.append(ni)
 
             # new_population += population[:params['ELITISM']]

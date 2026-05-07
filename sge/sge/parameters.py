@@ -1,11 +1,47 @@
 import argparse
 import yaml
 from distutils.util import strtobool
+from enum import Enum
 '''
 This was adapted from PonyGE2: https://github.com/PonyGE/PonyGE2
 Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Neill, M. PonyGE2: Grammatical Evolution in Python. arXiv preprint, arXiv:1703.08535, 2017.
 '''
 """"Algorithm Parameters"""
+
+class LearningStrategy(Enum):
+    INDEPENDENT = 'independent'
+    DEPTH_BASED = 'depth_based'
+    NONE = 'none'
+
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, cls):
+            return value
+        if value is None:
+            return None
+        try:
+            return cls(value.lower())
+        except ValueError as exc:
+            valid = ', '.join([item.value for item in cls])
+            raise ValueError(f"Invalid learning strategy: {value}. Valid options are: {valid}") from exc
+
+class SearchStrategy(Enum):
+    STANDARD = 'standard'
+    EDA = 'eda'
+    HYBRID = 'hybrid'
+
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, cls):
+            return value
+        if value is None:
+            return None
+        try:
+            return cls(value.lower())
+        except ValueError as exc:
+            valid = ', '.join([item.value for item in cls])
+            raise ValueError(f"Invalid search strategy: {value}. Valid options are: {valid}") from exc
+
 params = {'PARAMETERS': None,
           'POPSIZE': 100,
           'GENERATIONS': 100,
@@ -32,8 +68,8 @@ params = {'PARAMETERS': None,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
           'N_BEST': 1,
-          'SEARCH_STRATEGY': 'standard',
-          'LEARNING_STRATEGY': "independent",
+          'SEARCH_STRATEGY': SearchStrategy.STANDARD,
+          'LEARNING_STRATEGY': LearningStrategy.INDEPENDENT,
           'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
           }
 
@@ -42,6 +78,10 @@ def load_parameters(file_name=None):
     with open(file_name, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
     params.update(cfg)
+    if 'LEARNING_STRATEGY' in params:
+        params['LEARNING_STRATEGY'] = LearningStrategy.from_string(params['LEARNING_STRATEGY'])
+    if 'SEARCH_STRATEGY' in params:
+        params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
 
 
 def set_parameters(arguments):
@@ -100,14 +140,26 @@ def set_parameters(arguments):
                         dest='GRAMMAR',
                         type=str,
                         help='Specifies the path to the grammar file.')
+    def parse_learning_strategy(value):
+        try:
+            return LearningStrategy.from_string(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(str(exc))
+
+    def parse_search_strategy(value):
+        try:
+            return SearchStrategy.from_string(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(str(exc))
+
     parser.add_argument('--learning_strategy',
                         dest='LEARNING_STRATEGY',
-                        type=str,
-                        help='Specifies the learning strategy to be used. Options: independent, other.')
+                        type=parse_learning_strategy,
+                        help='Specifies the learning strategy to be used. Options: independent, depth_based.')
     parser.add_argument('--search_strategy',
                         dest='SEARCH_STRATEGY',
-                        type=str,
-                        help='Search strategy: eda, var.operators.')
+                        type=parse_search_strategy,
+                        help='Search strategy: standard, eda, hybrid.')
     parser.add_argument('--grammar_probs',
                         dest='GRAMMAR_PROBS',
                         type=str,
@@ -186,4 +238,9 @@ def set_parameters(arguments):
     if 'PARAMETERS' in cmd_args:
         load_parameters(cmd_args['PARAMETERS'])
     params.update(cmd_args)
+
+    if 'LEARNING_STRATEGY' in params:
+        params['LEARNING_STRATEGY'] = LearningStrategy.from_string(params['LEARNING_STRATEGY'])
+    if 'SEARCH_STRATEGY' in params:
+        params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
 

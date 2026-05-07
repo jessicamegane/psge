@@ -26,10 +26,10 @@ class RRSE():
     def __init__(self, train_set, test_set):
         self.criterion = torch.nn.MSELoss(reduction='sum')
         train_output_mean = torch.mean(train_set.target)
-        self.__RRSE_train_denominator = self.criterion(train_set.target, train_output_mean)
+        self.__RRSE_train_denominator = torch.sum((train_set.target - train_output_mean)**2)
         if test_set:
             test_output_mean = torch.mean(test_set.target)
-            self.__RRSE_test_denominator = self.criterion(test_set.target, test_output_mean)
+            self.__RRSE_test_denominator = torch.sum((test_set.target - test_output_mean)**2)
 
     def calculate(self, predicted, dataset):
         pred_error = self.criterion(predicted, dataset.target)
@@ -84,7 +84,7 @@ class SymbolicRegression():
             return pow(inp,6) + pow(inp,5) + pow(inp,4) + pow(inp,3) + pow(inp,2) + inp
         
         def nguyen5polynomial(inp):
-            return node_mul(node_sin(pow(inp,2)),node_cos(inp)) - 1
+            return node_sub(node_mul(node_sin(inp**2),node_cos(inp)), 1)
 
         def nguyen6polynomial(inp):
             return node_sin(inp) + node_sin(inp + pow(inp,2))

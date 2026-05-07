@@ -2,6 +2,8 @@ import re
 from sge.utilities import ordered_set
 import json
 import numpy as np
+from sge.parameters import LearningStrategy
+
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
     NT = "NT"
@@ -46,7 +48,7 @@ class Grammar:
     def get_max_init_depth(self):
         return self.max_init_depth
 
-    def read_grammar(self):
+    def read_grammar(self, learning_strategy=None):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -90,6 +92,7 @@ class Grammar:
                         if left_side not in self.grammar:
                             self.grammar[left_side] = temp_productions
         
+        self.learning_strategy = LearningStrategy.from_string(learning_strategy) if learning_strategy is not None else None
         self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
@@ -144,15 +147,27 @@ class Grammar:
         """
         assigns uniform probabilities to grammar
         """
-        array = np.zeros(shape=(len(self.grammar.keys()),self.max_number_prod_rules))
-        for i, nt in enumerate(self.grammar):
-            number_probs = len(self.grammar[nt])
-            prob = 1.0 / number_probs
-            array[i,:number_probs] = prob
-            if nt not in self.index_of_non_terminal:
-                self.index_of_non_terminal[nt] = i
-        self.pcfg = array
-        self.pcfg_mask = self.pcfg != 0
+        if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+            array = np.empty(shape=(len(self.grammar.keys()),(self.max_depth + 1)),dtype=object)
+
+            for i, nt in enumerate(self.grammar):
+                number_prods = len(self.grammar[nt])
+                prob = 1.0 / number_prods
+                for j in range(self.max_depth+1):
+                    array[i, j] = np.full(number_prods, prob)
+                if nt not in self.index_of_non_terminal:
+                    self.index_of_non_terminal[nt] = i
+            self.pcfg = array
+        else:
+            array = np.zeros(shape=(len(self.grammar.keys()),self.max_number_prod_rules))
+            for i, nt in enumerate(self.grammar):
+                number_probs = len(self.grammar[nt])
+                prob = 1.0 / number_probs
+                array[i,:number_probs] = prob
+                if nt not in self.index_of_non_terminal:
+                    self.index_of_non_terminal[nt] = i
+            self.pcfg = array
+            self.pcfg_mask = self.pcfg != 0
 
     def generate_random_pcfg(self):
         pass
@@ -183,14 +198,40 @@ class Grammar:
                 non_recursive_elements += [options]
         return non_recursive_elements
     
-    def get_probability(self, grammar, nt_index, index):
+    def get_probability(self, grammar, nt_index, index, current_depth=None):
         if grammar is None:
             return self.pcfg[nt_index,index]
+        elif self.learning_strategy == LearningStrategy.DEPTH_BASED:
+            return grammar[nt_index][current_depth][index]
         else:
             return grammar[nt_index,index]
         
-    def get_probabilities_non_terminal(self, grammar, nt_index):
-        return grammar[nt_index]
+    def get_probabilities_non_terminal(self, grammar, nt_index, current_depth=None):
+        if grammar is None:
+            return self.pcfg[nt_index]
+        elif self.learning_strategy == LearningStrategy.DEPTH_BASED:
+            return grammar[nt_index][current_depth]
+        else:
+            return grammar[nt_index]
+    
+    def generate_empty_grammar_counter(self):
+        if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+            gram_counter = [{} for nt in self.get_non_terminals()]
+        else:
+            gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
+        return gram_counter
+
+
+    def update_grammar_counter(self, grammar_counter, symbol, expansion_possibility, depth):
+        if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+            if depth not in grammar_counter[symbol]:
+                nt = list(self.get_non_terminals())[symbol]
+                grammar_counter[symbol][depth] = [0] * len(self.grammar[nt])
+            grammar_counter[symbol][depth][expansion_possibility] += 1
+        else:
+            grammar_counter[symbol][expansion_possibility] += 1
+        return grammar_counter
+
 
     def recursive_individual_creation(self, genome, symbol, current_depth, probs):
         codon = np.random.uniform()
@@ -225,10 +266,50 @@ class Grammar:
                 depths.append(self.recursive_individual_creation(genome, sym[0], current_depth + 1, probs))
         return max(depths)
 
+
+    def recursive_individual_creation_sge_like(self, genome, symbol, current_depth, probs):
+        codon = np.random.uniform()
+        nt_index = self.index_of_non_terminal[symbol]
+        if current_depth > self.max_init_depth:
+            shortest_path = self.shortest_path[(symbol,'NT')]
+            prob = 0.0
+            choices = shortest_path[1:]
+            rule = choices[np.random.randint(0, len(choices))]
+            index = self.grammar[symbol].index(rule)
+
+            if self.get_probability(probs, nt_index, index) == 0.0:
+                choices.remove(rule)
+                rule = choices[np.random.randint(0, len(choices))]
+                index = self.grammar[symbol].index(rule)
+            k = 0
+            for i in self.get_probabilities_non_terminal(probs, nt_index):
+                if k == index:
+                    break
+                prob += i
+                k += 1
+            codon = np.random.uniform(prob, prob + self.get_probability(probs, nt_index, index))
+            expansion_possibility = index
+        else:
+            prob_aux = 0.0
+            for index in range(len(self.grammar[symbol])):
+                prob_aux += self.get_probability(probs, nt_index, index)
+                if codon <= round(prob_aux,3):
+                    expansion_possibility = index
+                    break
+
+        genome[self.get_non_terminals().index(symbol)].append([expansion_possibility,codon,current_depth])
+        expansion_symbols = self.grammar[symbol][expansion_possibility]
+        depths = [current_depth]
+        for sym in expansion_symbols:
+            if sym[1] != self.T:
+                depths.append(self.recursive_individual_creation_sge_like(genome, sym[0], current_depth + 1, probs))
+        return max(depths)
+    
     def mapping(self, probs, mapping_rules, positions_to_map=None, needs_python_filter=False):
         if positions_to_map is None:
             positions_to_map = [0] * len(self.ordered_non_terminals)
-        gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
+        # gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
+        gram_counter = self.generate_empty_grammar_counter()
         output = []
         max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, self.start_rule, 0, output)
         output = "".join(output)
@@ -242,24 +323,24 @@ class Grammar:
             output.append(current_sym[0])
         else:
             current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
-            choices = self.grammar[current_sym[0]]
+            choices_expand = self.grammar[current_sym[0]]
             shortest_path = self.shortest_path[current_sym]
             nt_index = self.index_of_non_terminal[current_sym[0]]
-            # print("mapping rules", mapping_rules)
+
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
                 codon = np.random.uniform()
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(probs, nt_index, index)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0:
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(probs, nt_index, index) / prob_non_recursive
+                            new_prob = self.get_probability(probs, nt_index, index, current_depth) / prob_non_recursive
                         # new_prob = probs[nt_index][index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
@@ -268,7 +349,7 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(probs, nt_index, index)
+                        prob_aux += self.get_probability(probs, nt_index, index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -280,18 +361,19 @@ class Grammar:
                 #     codon = np.random.uniform()
                 # else:
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
+                
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(probs, nt_index, index)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0:
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(probs, nt_index, index) / prob_non_recursive
+                            new_prob = self.get_probability(probs, nt_index, index, current_depth) / prob_non_recursive
                         # new_prob = probs[nt_index][index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
@@ -300,20 +382,142 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(probs, nt_index, index)
+                        prob_aux += self.get_probability(probs, nt_index, index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
-            # update mapping rules com a updated expansion possibility
-            mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
-            gram_counter[current_sym_pos][expansion_possibility] += 1   
+                # update mapping rules com a updated expansion possibility
+                # print(mapping_rules[current_sym_pos])
+                mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
+            gram_counter = self.update_grammar_counter(gram_counter, current_sym_pos, expansion_possibility, current_depth)
+
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
-            next_to_expand = choices[current_production]
+            next_to_expand = choices_expand[current_production]
             for next_sym in next_to_expand:
                 depths.append(
                     self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, next_sym, current_depth + 1, output))
         return max(depths)
+
+    def _recursive_mapping_hybrid_not_aware(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):
+        # codigo para a mutacao not aware, voltar a usar so float, em vez de converter de int p float
+        depths = [current_depth]
+        if current_sym[1] == self.T:
+            output.append(current_sym[0])
+        else:
+            current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
+            choices_expand = self.grammar[current_sym[0]]
+            shortest_path = self.shortest_path[current_sym]
+            nt_index = self.index_of_non_terminal[current_sym[0]]
+
+            if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
+                codon = np.random.uniform()
+                if current_depth >= (self.max_depth - shortest_path[0]):
+                    prob_non_recursive = 0.0
+                    for rule in shortest_path[1:]:
+                        index = self.grammar[current_sym[0]].index(rule)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth)
+                    prob_aux = 0.0
+                    for rule in shortest_path[1:]:
+                        index = self.grammar[current_sym[0]].index(rule)
+                        if prob_non_recursive == 0.0:
+                            new_prob = 1.0 / len(shortest_path[1:])
+                        else:
+                            new_prob = self.get_probability(probs, nt_index, index, current_depth) / prob_non_recursive
+                        # new_prob = probs[nt_index][index] / prob_non_recursive
+                        prob_aux += new_prob
+                        if codon <= round(prob_aux,3):
+                            expansion_possibility = index
+                            break
+                else:
+                    prob_aux = 0.0
+                    for index in range(len(self.grammar[current_sym[0]])):
+                        prob_aux += self.get_probability(probs, nt_index, index, current_depth)
+                        if codon <= round(prob_aux,3):
+                            expansion_possibility = index
+                            break
+                mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
+                # gram_counter[current_sym_pos][expansion_possibility] += 1 
+                gram_counter = self.update_grammar_counter(gram_counter, current_sym_pos, expansion_possibility, current_depth)
+            
+            # update mapping rules com a updated expansion possibility
+            # mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
+            # current_production = expansion_possibility
+            current_production = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][0]
+            positions_to_map[current_sym_pos] += 1
+            next_to_expand = choices_expand[current_production]
+            for next_sym in next_to_expand:
+                depths.append(
+                    self._recursive_mapping_hybrid_not_aware(probs, mapping_rules, positions_to_map, gram_counter, next_sym, current_depth + 1, output))
+        return max(depths)
+    
+
+
+    def _recursive_mapping_sge_like(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):
+        depths = [current_depth]
+        if current_sym[1] == self.T:
+            output.append(current_sym[0])
+        else:
+            current_sym_pos = self.ordered_non_terminals.index(current_sym[0])
+            choices_expand = self.grammar[current_sym[0]]
+            shortest_path = self.shortest_path[current_sym]
+            nt_index = self.index_of_non_terminal[current_sym[0]]
+
+            if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
+                # codon = np.random.uniform()
+                if current_depth >= (self.max_depth - shortest_path[0]):
+                    prob = 0.0
+                    choices = shortest_path[1:]
+                    rule = choices[np.random.randint(0, len(choices))]
+                    index = self.grammar[current_sym[0]].index(rule)
+
+                    k = 0
+                    for i in self.get_probabilities_non_terminal(probs, nt_index):
+                        if k == index:
+                            break
+                        prob += i
+                        k += 1
+                    # TODO: HERE HERE HERE
+                    codon = (prob + prob + self.get_probability(probs, nt_index, index)) / 2
+                    # codon = np.random.uniform(prob, prob + self.get_probability(probs, nt_index, index))
+                    expansion_possibility = index
+                else:
+                    # TODO: HERE HERE HERE
+                    # print(choices_expand)
+                    if len(choices_expand) == 1:
+                        expansion_possibility = 0
+                        codon = 0.01
+                    else:
+                        index = np.random.randint(0, len(choices_expand))
+
+                        prob = 0.0
+                        # if self.get_probability(probs, nt_index, index) == 0.0:
+                        #     continue
+                        k = 0
+                        for i in self.get_probabilities_non_terminal(probs, nt_index):
+                            if k == index:
+                                break
+                            prob += i
+                            k += 1
+
+                        codon = (prob + prob + self.get_probability(probs, nt_index, index)) / 2
+                        expansion_possibility = index
+
+                    # UNTIL HERE
+                mapping_rules[current_sym_pos].append([expansion_possibility,codon,current_depth])
+         
+            # update mapping rules com a updated expansion possibility
+            # mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
+                gram_counter[current_sym_pos][expansion_possibility] += 1   
+            # current_production = expansion_possibility
+            current_production = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][0]
+            positions_to_map[current_sym_pos] += 1
+            next_to_expand = choices_expand[current_production]
+            for next_sym in next_to_expand:
+                depths.append(
+                    self._recursive_mapping_sge_like(probs, mapping_rules, positions_to_map, gram_counter, next_sym, current_depth + 1, output))
+        return max(depths)
+    
 
     def compute_non_recursive_options(self):
         for key in self.grammar.keys():
