@@ -7,8 +7,8 @@ MAX_JOBS=16   # change this to control parallelism
 SEEDS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -16,13 +16,27 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --search_strategy eda \
     --learning_strategy independent \
     --learning_factor 0.01 \
-    --n_best 100 \
-    --remap false \
-    --experiment_name experiments_psge_probs_alternate/psge_eda_elite_1_nbest100/pagiepolynomial 
+    --n_best 1 \
+    --remap False \
+    --experiment_name experiments_500_gen/psge_eda_elite_1_nbest1/nguyen5polynomial 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.symreg_pytorch nguyen5polynomial \
+#     --grammar grammars/regression_torch.pybnf \
+#     --parameters parameters/auto_params.yaml \
+#     --seed {} --run {#} \
+#     --tsize 3 \
+#     --elitism 1 \
+#     --search_strategy eda \
+#     --learning_strategy independent \
+#     --learning_factor 0.01 \
+#     --n_best 100 \
+#     --remap false \
+#     --experiment_name experiments_500_gen/psge_eda_elite_1_nbest100/nguyen5polynomial 
+
+# printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
+#     python -m examples.symreg_pytorch nguyen5polynomial \
+#     --grammar grammars/regression_torch.pybnf \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --tsize 3 \
@@ -32,26 +46,13 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --learning_factor 0.05 \
 #     --n_best 100 \
 #     --remap false \
-#     --experiment_name experiments_psge_probs_alternate/psge_eda_elite_1_nbest100/pagiepolynomial 
+#     --experiment_name experiments_500_gen/psge_eda_elite_1_nbest100/nguyen5polynomial 
 
 
-printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
-    --parameters parameters/auto_params.yaml \
-    --seed {} --run {#} \
-    --tsize 3 \
-    --elitism 1 \
-    --search_strategy eda \
-    --learning_strategy independent \
-    --learning_factor 0.01 \
-    --n_best 1 \
-    --remap false \
-    --experiment_name experiments_psge_probs_alternate/psge_eda_elite_1_nbest1/pagiepolynomial 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.symreg_pytorch nguyen5polynomial \
+#     --grammar grammars/regression_torch.pybnf \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --tsize 3 \
@@ -61,13 +62,13 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --learning_factor 0.05 \
 #     --n_best 1 \
 #     --remap false \
-#     --experiment_name experiments_psge_probs_alternate/psge_eda_elite_1_nbest1/pagiepolynomial 
+#     --experiment_name experiments_500_gen/psge_eda_elite_1_nbest1/nguyen5polynomial 
 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -76,13 +77,13 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --learning_strategy depth_based \
     --learning_factor 0.01 \
     --n_best 1 \
-    --remap false \
-    --experiment_name experiments_psge_probs_alternate/psge_depth_based_eda_elite_1_nbest1/pagiepolynomial 
+    --remap False \
+    --experiment_name experiments_500_gen/psge_depth_based_eda_elite_1_nbest1/nguyen5polynomial 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -90,13 +91,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --search_strategy eda \
     --learning_strategy none \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/sgef_eda_elite_1/pagiepolynomial 
-
+    --experiment_name experiments_500_gen/sgef_eda_elite_1/nguyen5polynomial 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -109,11 +109,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --learning_factor 0.01 \
     --n_best 1 \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/psge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_500_gen/psge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/nguyen5polynomial 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -126,12 +126,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --learning_factor 0.01 \
     --n_best 1 \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/psge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_500_gen/psge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/nguyen5polynomial 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -144,11 +144,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --learning_factor 0.01 \
     --n_best 1 \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_500_gen/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/nguyen5polynomial 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -161,11 +161,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --learning_factor 0.01 \
     --n_best 1 \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_500_gen/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/nguyen5polynomial 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.symreg_pytorch nguyen5polynomial \
+#     --grammar grammars/regression_torch.pybnf \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -178,11 +178,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --learning_factor 0.05 \
 #     --n_best 100 \
 #     --remap False \
-#     --experiment_name experiments_psge_probs/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest100/pagiepolynomial 
+#     --experiment_name experiments_psge_probs/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest100/nguyen5polynomial 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.symreg_pytorch nguyen5polynomial \
+#     --grammar grammars/regression_torch.pybnf \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -195,15 +195,13 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --learning_factor 0.05 \
 #     --n_best 100 \
 #     --remap False \
-#     --experiment_name experiments_psge_probs/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest100/pagiepolynomial 
-
-
+#     --experiment_name experiments_psge_probs/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest100/nguyen5polynomial 
 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -213,11 +211,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --search_strategy standard \
     --learning_strategy none \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/sgef_mut_uniform_05_prob_cross_0_tournament_3_elite_100/pagiepolynomial 
+    --experiment_name experiments_500_gen/sgef_mut_uniform_05_prob_cross_0_tournament_3_elite_100/nguyen5polynomial 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.symreg_pytorch nguyen5polynomial \
+    --grammar grammars/regression_torch.pybnf \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -227,6 +225,6 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --search_strategy standard \
     --learning_strategy none \
     --remap False \
-    --experiment_name experiments_psge_probs_alternate/sgef_mut_uniform_05_prob_cross_90_tournament_3_elite_100/pagiepolynomial 
+    --experiment_name experiments_500_gen/sgef_mut_uniform_05_prob_cross_90_tournament_3_elite_100/nguyen5polynomial 
 
 
