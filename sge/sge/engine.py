@@ -87,9 +87,12 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         elif population[0]['fitness'] <= best['fitness']:
             best = copy.deepcopy(population[0])
 
-
-        update_distributions(params['LEARNING_STRATEGY'], [best_gen] + population, params['LEARNING_FACTOR'], params['N_BEST'])
-        
+        if flag:
+            update_distributions(params['LEARNING_STRATEGY'], [best_gen] + population, params['LEARNING_FACTOR'], params['N_BEST'])
+            flag = not flag
+        else:
+            update_distributions(params['LEARNING_STRATEGY'], population, params['LEARNING_FACTOR'], params['N_BEST'])
+            flag = not flag
      
         # if params['LEARNING_STRATEGY'] == "independent":
 
