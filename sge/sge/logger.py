@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from enum import Enum
 from sge.parameters import params
@@ -46,7 +47,7 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
         np.nanstd(test_error_samples),
         best['tree_depth'],
         np.nanmean(depth_samples),
-        np.nanmedian(depth_samples),
+        np.nanstd(depth_samples),
         length_used_genotype_best,
         unique_percentage,
         percentage_new_individuals
@@ -62,37 +63,38 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
 
     grammar_data = {"generation": generation, "grammar": gram}
 
-    with open('%s/run_%d/grammar_probabilities.json' % (params['EXPERIMENT_NAME'],params['RUN']), 'a') as f:
+    with open('%s/grammar_probabilities.json' % (params['RUN_FOLDER']), 'a') as f:
         json.dump(grammar_data, f, cls=NumpyEncoder)
         f.write(',\n')
 
     # to_save = []
     # to_save.append({"grammar": gram})
-    # folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN'])
+    # folder = params['EXPERIMENT_NAME'] + '/last_' + str(params['RUN_FOLDER'])
     # if not os.path.exists(folder):
     #     os.makedirs(folder,  exist_ok=True)
     # open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
 
 def save_progress_to_file(data):
-    with open('%s/run_%d/progress_report.csv' % (params['EXPERIMENT_NAME'], params['RUN']), 'a') as f:
+    with open('%s/progress_report.csv' % (params['RUN_FOLDER']), 'a') as f:
         f.write(data + '\n')
 
 
 def save_step(generation, population):
-    c = json.dumps(population)
-    open('%s/run_%d/iteration_%d.json' % (params['EXPERIMENT_NAME'], params['RUN'], generation), 'a').write(c)
+    c = json.dumps(population, cls=NumpyEncoder)
+    open('%s/iteration_%d.json' % (params['RUN_FOLDER'], generation), 'a').write(c)
 
 
 def save_parameters():
     params_lower = dict((k.lower(), v) for k, v in params.items())
+    params_lower['command'] = ' '.join(os.sys.argv)
     c = json.dumps(params_lower, cls=NumpyEncoder)
-    open('%s/run_%d/parameters.json' % (params['EXPERIMENT_NAME'], params['RUN']), 'a').write(c)
-
+    open('%s/parameters.json' % (params['RUN_FOLDER']), 'a').write(c)
 
 def prepare_dumps():
     try:
-        os.makedirs('%s/run_%d' % (params['EXPERIMENT_NAME'], params['RUN']))
+        params['RUN_FOLDER'] = str(params['EXPERIMENT_NAME']) + "/run_" + str(params['RUN']) + "_" + str(int(time.time() * 1000000))
+        os.makedirs('%s' % (params['RUN_FOLDER']))
     except FileExistsError as e:
         pass
     save_parameters()

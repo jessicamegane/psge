@@ -42,6 +42,25 @@ class SearchStrategy(Enum):
             valid = ', '.join([item.value for item in cls])
             raise ValueError(f"Invalid search strategy: {value}. Valid options are: {valid}") from exc
 
+class AlgorithmMethod(Enum):
+    PSGE = 'psge'
+    COPSGE = 'copsge'
+    SGEF = 'sgef'
+    PSGE_COPSGE = 'psge_copsge'
+
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, cls):
+            return value
+        if value is None:
+            return None
+        try:
+            return cls(value.lower())
+        except ValueError as exc:
+            valid = ', '.join([item.value for item in cls])
+            raise ValueError(f"Invalid Algorithm Method: {value}. Valid options are: {valid}") from exc
+
+
 params = {'PARAMETERS': None,
           'POPSIZE': 100,
           'GENERATIONS': 100,
@@ -71,6 +90,9 @@ params = {'PARAMETERS': None,
           'SEARCH_STRATEGY': SearchStrategy.STANDARD,
           'LEARNING_STRATEGY': LearningStrategy.INDEPENDENT,
           'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
+          'ALGORITHM_METHOD': AlgorithmMethod.PSGE,
+          'PROB_MUTATION_GRAMMAR': 0.05,
+          'NORMAL_DIST_SD': 0.5,
           }
 
 
@@ -82,6 +104,8 @@ def load_parameters(file_name=None):
         params['LEARNING_STRATEGY'] = LearningStrategy.from_string(params['LEARNING_STRATEGY'])
     if 'SEARCH_STRATEGY' in params:
         params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
+    if 'ALGORITHM_METHOD' in params:
+        params['ALGORITHM_METHOD'] = AlgorithmMethod.from_string(params['ALGORITHM_METHOD'])
 
 
 def set_parameters(arguments):
@@ -152,6 +176,12 @@ def set_parameters(arguments):
         except ValueError as exc:
             raise argparse.ArgumentTypeError(str(exc))
 
+    def parse_algorithm_method(value):
+        try:
+            return AlgorithmMethod.from_string(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(str(exc))
+
     parser.add_argument('--learning_strategy',
                         dest='LEARNING_STRATEGY',
                         type=parse_learning_strategy,
@@ -160,6 +190,10 @@ def set_parameters(arguments):
                         dest='SEARCH_STRATEGY',
                         type=parse_search_strategy,
                         help='Search strategy: standard, eda, hybrid.')
+    parser.add_argument('--algorithm_method',
+                        dest='ALGORITHM_METHOD',
+                        type=parse_algorithm_method,
+                        help='Algorithm method: psge, copsge, sgef, psge_copsge.')
     parser.add_argument('--grammar_probs',
                         dest='GRAMMAR_PROBS',
                         type=str,
@@ -196,6 +230,14 @@ def set_parameters(arguments):
                         dest='GAUSS_SD',
                         type=float,
                         help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true.')
+    parser.add_argument('--prob_mutation_grammar',
+                        dest='PROB_MUTATION_GRAMMAR',
+                        type=float,
+                        help='Specifies the probability of occurring a mutation in the individual grammar. Only available for algorithm methods COPSGE and PSGE_COPSGE.')
+    parser.add_argument('--normal_dist_sd',
+                        dest='NORMAL_DIST_SD',
+                        type=float,
+                        help='Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Only used in the grammar mutation, for algorithm methods COPSGE and PSGE_COPSGE.')
     parser.add_argument('--experiment_name',
                         dest='EXPERIMENT_NAME',
                         type=str,
@@ -243,4 +285,5 @@ def set_parameters(arguments):
         params['LEARNING_STRATEGY'] = LearningStrategy.from_string(params['LEARNING_STRATEGY'])
     if 'SEARCH_STRATEGY' in params:
         params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
-
+    if 'ALGORITHM_METHOD' in params:
+        params['ALGORITHM_METHOD'] = AlgorithmMethod.from_string(params['ALGORITHM_METHOD'])

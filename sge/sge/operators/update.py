@@ -9,8 +9,10 @@ from sge.parameters import LearningStrategy, SearchStrategy
 
 def update_distributions(learning_strategy, population, lf, n_best):
     if learning_strategy == LearningStrategy.INDEPENDENT:
+        print("PSGE")
         independent_update(population, lf, n_best)
     elif learning_strategy == LearningStrategy.DEPTH_BASED:
+        print("DEPTH")
         depth_based_update(population, lf, n_best)
 
 '''
@@ -47,7 +49,9 @@ def independent_update(individuals, lf, n_best):
             elif counter == 0:
                 gram[i][j] = max(old_prob - lf * old_prob, 0.0)
 
-        gram[i,:] = np.clip(gram[i,:], 0, np.inf) / np.sum(np.clip(gram[i,:], 0, np.inf))
+        masked_indices = mask[i,:]
+        gram[i, masked_indices] = np.clip(gram[i, masked_indices], 0, np.inf)
+        gram[i, masked_indices] /= np.sum(gram[i, masked_indices])
 
 '''
     DEPTH-BASED UPDATE
@@ -129,3 +133,55 @@ def depth_based_update(population, lf, n_best):
     1. Get the count of how many times each production rule was used in the best individuals, at each depth level and for each parent non-terminal.
     2. For each production rule, if it was used, increase or decrease its probability, but only for the depth level and parent non-terminal where it was used.
 '''
+
+
+'''
+    PROBABILITIES MUTATION
+    Approach based on the Co-PSGE algorithm
+    1. For each production rule, with a certain probability, mutate its probability using a normal distribution
+    2. Normalize the probabilities of the production rules for each non-terminal 
+'''
+
+def grammar_mutation(ind, prob_mutation, gauss_std):
+    print("COPSGE")
+    ind['fitness'] = None
+    for idx_nt, nt_values in enumerate(ind['pcfg']):
+        if len(nt_values)  <= 1:
+            continue
+        for prob_idx in range(len(nt_values)):
+            if np.random.uniform() < prob_mutation:
+                gauss = np.random.normal(0.0, gauss_std)
+                diff = (gauss / (len(nt_values) - 1))
+                nt_values[prob_idx] += (gauss + diff)
+                nt_values -= diff
+                nt_values = np.clip(nt_values, 0, np.inf)
+                nt_values /= np.sum(np.clip(nt_values, 0, np.inf))
+                ind['pcfg'][idx_nt] = nt_values
+                break
+    return ind
+
+def grammar_mutation(ind, prob_mutation, gauss_std):
+    ind['fitness'] = None
+    gram = ind['pcfg']
+    rows, columns = gram.shape
+    mask = copy.deepcopy(grammar.get_mask())
+    for i in range(rows):
+        if np.count_nonzero(mask[i,:]) <= 1:
+            continue
+
+        for j in range(columns):
+            if not mask[i,j]:
+                continue
+            if np.random.uniform() < prob_mutation:
+                gauss = np.random.normal(0.0, gauss_std)
+                diff = (gauss / (columns - 1))
+                gram[i][j] += (gauss + diff)
+                gram[i] -= diff
+                gram[i] = np.clip(gram[i], 0, np.inf)
+                gram[i] /= np.sum(np.clip(gram[i], 0, np.inf))
+                break
+
+        masked_indices = mask[i,:]
+        gram[i, masked_indices] = np.clip(gram[i, masked_indices], 0, np.inf)
+        gram[i, masked_indices] /= np.sum(gram[i, masked_indices])
+    return ind

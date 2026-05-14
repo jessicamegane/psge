@@ -3,10 +3,9 @@ import numpy as np
 import sge.grammar as grammar
 from sge.parameters import params
 
-def mutate(p, pmutation):
+def mutate(p, pmutation, probs):
     p = copy.deepcopy(p)
     p['fitness'] = None
-    pcfg = grammar.get_pcfg()
     size_of_genes = grammar.count_number_of_options_in_production()
     mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[index] != 1 and len(p['genotype'][index]) > 0]
     for at_gene in mutable_genes:
@@ -26,20 +25,19 @@ def mutate(p, pmutation):
                     prob = 0.0
                     rule = shortest_path[np.random.randint(1, len(shortest_path))]
                     index = grammar.get_dict()[nt].index(rule)
-                    if grammar.get_probability(pcfg, nt_index, index, current_depth) == 0.0:
+                    if grammar.get_probability(probs, nt_index, index, current_depth) == 0.0:
                         continue
                     k = 0
-                    for i in grammar.get_probabilities_non_terminal(pcfg, nt_index, current_depth):
-                        if k == index:
-                            break
-                        prob += i
-                        k += 1
-                    codon = np.random.uniform(prob, prob + grammar.get_probability(pcfg, nt_index, index, current_depth))
+                    
+                    probs_nt = np.array(grammar.get_probabilities_non_terminal(probs, nt_index, current_depth))
+                    cumulative_sum_probs = np.sum(probs_nt[:index])
+                    codon = np.random.uniform(cumulative_sum_probs, cumulative_sum_probs + probs_nt[index])
+
                     expansion_possibility = index
                 else:
                     prob_aux = 0.0
                     for index in range(len(grammar.get_dict()[nt])):
-                        prob_aux += grammar.get_probability(pcfg, nt_index, index, current_depth)
+                        prob_aux += grammar.get_probability(probs, nt_index, index, current_depth)
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -48,11 +46,10 @@ def mutate(p, pmutation):
 
 
 
-def mutate_100(p, pmutation):
+def mutate_100(p, pmutation, probs):
     # tipo do SGE mas usa current depth
     p = copy.deepcopy(p)
     p['fitness'] = None
-    pcfg = grammar.get_pcfg()
     size_of_genes = grammar.count_number_of_options_in_production()
     mutable_genes = [index for index, nt in enumerate(grammar.get_non_terminals()) if size_of_genes[index] != 1 and len(p['genotype'][index]) > 0]
     for at_gene in mutable_genes:
@@ -80,16 +77,16 @@ def mutate_100(p, pmutation):
                     rule = choices[np.random.randint(0, len(choices))]
                     index = grammar.get_dict()[nt].index(rule)
 
-                    if grammar.get_probability(pcfg, nt_index, index) == 0.0:
+                    if grammar.get_probability(probs, nt_index, index, current_depth) == 0.0:
                         continue
                     k = 0
-                    for i in grammar.get_probabilities_non_terminal(pcfg, nt_index):
+                    for i in grammar.get_probabilities_non_terminal(probs, nt_index, current_depth):
                         if k == index:
                             break
                         prob += i
                         k += 1
                     # TODO: HERE HERE HERE
-                    codon = (prob + prob + grammar.get_probability(pcfg, nt_index, index)) / 2
+                    codon = (prob + prob + grammar.get_probability(probs, nt_index, index, current_depth)) / 2
                     # codon = np.random.uniform(prob, prob + grammar.get_probability(pcfg, nt_index, index))
                     expansion_possibility = index
                 else:
@@ -100,16 +97,16 @@ def mutate_100(p, pmutation):
                     choices.remove(current_value[0])
                     index = np.random.choice(choices)
                     prob = 0.0
-                    if grammar.get_probability(pcfg, nt_index, index) == 0.0:
+                    if grammar.get_probability(probs, nt_index, index, current_depth) == 0.0:
                         continue
                     k = 0
-                    for i in grammar.get_probabilities_non_terminal(pcfg, nt_index):
+                    for i in grammar.get_probabilities_non_terminal(probs, nt_index, current_depth):
                         if k == index:
                             break
                         prob += i
                         k += 1
                     # TODO: HERE HERE HERE
-                    codon = (prob + prob +grammar.get_probability(pcfg, nt_index, index)) / 2
+                    codon = (prob + prob +grammar.get_probability(probs, nt_index, index, current_depth)) / 2
                     # codon = np.random.uniform(prob, prob + grammar.get_probability(pcfg, nt_index, index))
                     expansion_possibility = index
                 # print("MUTATED;")

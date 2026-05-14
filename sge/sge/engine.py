@@ -8,15 +8,17 @@ import numpy as np
 from sge.operators.recombination import crossover
 from sge.operators.mutation import mutate, mutate_level, mutation_prob_mutation, mutate_100
 from sge.operators.selection import tournament
-from sge.operators.update import update_distributions
+from sge.operators.update import update_distributions, grammar_mutation
 from sge.parameters import (
     params,
     SearchStrategy,
+    AlgorithmMethod,
     set_parameters,
     load_parameters
 )
 
 def generate_random_individual(max_expansions):
+    ind =  {'fitness': None, 'tree_depth': None}
     if params['GENOTYPE_INIT'] == 'fixed':
         # TODO: implement multiple values of list
         # genotype = [[[-1, 0, -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
@@ -26,10 +28,14 @@ def generate_random_individual(max_expansions):
         genotype = [[] for _ in grammar.get_non_terminals()]
         # tree_depth = grammar.recursive_individual_creation(genotype, grammar.start_rule()[0], 0, grammar.get_pcfg())
         # genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
+    ind['genotype'] = genotype
     if params['ADAPTIVE_MUTATION']:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : None, 'mutation_probs': [params['PROB_MUTATION'] for _ in genotype] }
-    else:
-        return {'genotype': genotype, 'fitness': None, 'tree_depth' : None}
+        ind['mutation_probs'] = [params['PROB_MUTATION'] for _ in genotype]
+    
+    if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
+        ind['pcfg'] = grammar.get_pcfg()
+
+    return ind
 
 
 def make_initial_population(pop_size):
@@ -40,7 +46,11 @@ def make_initial_population(pop_size):
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth, gram_counter = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
+    if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
+        probabilistic_distribution = ind['pcfg']
+    else:
+        probabilistic_distribution = grammar.get_pcfg()
+    phen, tree_depth, gram_counter = grammar.mapping(probabilistic_distribution, ind['genotype'], mapping_values)
     quality, other_info = eval_func.evaluate(phen)
     ind['phenotype'] = phen
     ind['fitness'] = quality
@@ -63,7 +73,7 @@ def setup(parameters_file_path = None):
     grammar.set_path(params['GRAMMAR'])
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
-    grammar.read_grammar(params['LEARNING_STRATEGY'])
+    grammar.read_grammar(learning_strategy=params['LEARNING_STRATEGY'], algorithm_method=params['ALGORITHM_METHOD'])
 
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
@@ -132,14 +142,22 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
                     ni = crossover(p1, p2)
                 else:
                     ni = tournament(population, params['TSIZE'])
+                
+                if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
+                    ni = grammar_mutation(ni, params['PROB_MUTATION_GRAMMAR'], params['NORMAL_DIST_SD'])
+                
                 if params['ADAPTIVE_MUTATION']:
                     # Adaptive Facilitated Mutation
                     ni = mutation_prob_mutation(ni)
                     ni = mutate_level(ni)
                 else:
-                    ni = mutate(ni, params['PROB_MUTATION'])
+                    if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
+                        ni = mutate(ni, params['PROB_MUTATION'], ni['pcfg'])
+                    else:
+                        ni = mutate(ni, params['PROB_MUTATION'], grammar.get_pcfg())
 
                 new_population.append(ni)
+
 
             # new_population += population[:params['ELITISM']]
             for i in tqdm(new_population):

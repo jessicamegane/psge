@@ -2,7 +2,7 @@ import re
 from sge.utilities import ordered_set
 import json
 import numpy as np
-from sge.parameters import LearningStrategy
+from sge.parameters import LearningStrategy, AlgorithmMethod
 
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
@@ -48,7 +48,7 @@ class Grammar:
     def get_max_init_depth(self):
         return self.max_init_depth
 
-    def read_grammar(self, learning_strategy=None):
+    def read_grammar(self, learning_strategy=None, algorithm_method=None):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -93,6 +93,7 @@ class Grammar:
                             self.grammar[left_side] = temp_productions
         
         self.learning_strategy = LearningStrategy.from_string(learning_strategy) if learning_strategy is not None else None
+        self.algorithm_method = AlgorithmMethod.from_string(algorithm_method) if algorithm_method is not None else None
         self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
             # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
@@ -170,7 +171,18 @@ class Grammar:
             self.pcfg_mask = self.pcfg != 0
 
     def generate_random_pcfg(self):
-        pass
+        """
+        assigns random probabilities to grammar and a softmax so they are uniform
+        """
+        pcfg = []
+        for i, nt in enumerate(self.grammar):
+            number_probs = len(self.grammar[nt])
+            array = np.random.rand(number_probs)
+            array = array / np.sum(array)
+            if nt not in self.index_of_non_terminal:
+                self.index_of_non_terminal[nt] = i
+            pcfg.append(array)
+        self.pcfg = pcfg
 
     def get_mask(self):
         return self.pcfg_mask
@@ -201,18 +213,48 @@ class Grammar:
     def get_probability(self, grammar, nt_index, index, current_depth=None):
         if grammar is None:
             return self.pcfg[nt_index,index]
-        elif self.learning_strategy == LearningStrategy.DEPTH_BASED:
-            return grammar[nt_index][current_depth][index]
+        if self.algorithm_method == AlgorithmMethod.PSGE_COPSGE:
+            if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+                mean = np.mean(np.array([grammar[nt_index], self.pcfg[nt_index][current_depth]]), axis=0)
+                return mean[current_depth][index]
+            # TODO: arranjar maneira de receber tbm a gramatica geral
+            # 1st approach: average of both probabilities
+            else:
+
+                mean = np.mean(np.array([grammar[nt_index], self.pcfg[nt_index]]), axis=0)
+                return mean[index]
+            # 2nd approach: hadamart product: mul matrizes + norm
+            # comb = np.multiply(grammar, self.pcfg)
+            # comb /= np.sum(comb)
+            # return comb[index]
+            # 3rd approach: LSE Log-Sum-Exponent
+            # alpha = 1.0
+            # beta = 1.0
+            # S = alpha * np.log(grammar[nt_index]) + beta * np.log(self.pcfg[nt_index])
+            # comb = np.exp(S)
+            # comb /= np.sum(comb)
+            # return comb[index]
         else:
-            return grammar[nt_index,index]
+            if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+                return grammar[nt_index][current_depth][index]
+            else:
+                return grammar[nt_index,index]
         
     def get_probabilities_non_terminal(self, grammar, nt_index, current_depth=None):
         if grammar is None:
             return self.pcfg[nt_index]
-        elif self.learning_strategy == LearningStrategy.DEPTH_BASED:
-            return grammar[nt_index][current_depth]
+        if self.algorithm_method == AlgorithmMethod.PSGE_COPSGE:
+            if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+                mean = np.mean(np.array([grammar[nt_index][current_depth], self.pcfg[nt_index][current_depth]]), axis=0)
+                return mean[current_depth]
+            else:
+                mean = np.mean(np.array([grammar[nt_index], self.pcfg[nt_index]]), axis=0)
+                return mean
         else:
-            return grammar[nt_index]
+            if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+                return grammar[nt_index][current_depth]
+            else:
+                return grammar[nt_index]
     
     def generate_empty_grammar_counter(self):
         if self.learning_strategy == LearningStrategy.DEPTH_BASED:
@@ -361,7 +403,6 @@ class Grammar:
                 #     codon = np.random.uniform()
                 # else:
                 codon = mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]][1]
-                
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
@@ -388,7 +429,7 @@ class Grammar:
                             break
                 # update mapping rules com a updated expansion possibility
                 # print(mapping_rules[current_sym_pos])
-                mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility,codon,current_depth]
+                mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility, codon, current_depth]
             gram_counter = self.update_grammar_counter(gram_counter, current_sym_pos, expansion_possibility, current_depth)
 
             current_production = expansion_possibility
