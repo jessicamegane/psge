@@ -14,7 +14,7 @@ def update_distributions(learning_strategy, population, lf, n_best):
     elif learning_strategy == LearningStrategy.DEPTH_BASED:
         print("DEPTH")
         depth_based_update(population, lf, n_best)
-
+    
 '''
     INDEPENDENT UPDATE
     1. Get the count of how many times each production rule was used in the best individuals.

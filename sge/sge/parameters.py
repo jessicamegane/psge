@@ -61,6 +61,24 @@ class AlgorithmMethod(Enum):
             raise ValueError(f"Invalid Algorithm Method: {value}. Valid options are: {valid}") from exc
 
 
+class GenotypeDistribution(Enum):
+    UNIFORM = 'uniform'
+    NORMAL = 'normal'
+    CMA_ES = 'cma_es'
+    VAE = 'vae'
+
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, cls):
+            return value
+        if value is None:
+            return None
+        try:
+            return cls(value.lower())
+        except ValueError as exc:
+            valid = ', '.join([item.value for item in cls])
+            raise ValueError(f"Invalid genotype distribution: {value}. Valid options are: {valid}") from exc
+
 params = {'PARAMETERS': None,
           'POPSIZE': 100,
           'GENERATIONS': 100,
@@ -90,6 +108,8 @@ params = {'PARAMETERS': None,
           'SEARCH_STRATEGY': SearchStrategy.STANDARD,
           'LEARNING_STRATEGY': LearningStrategy.INDEPENDENT,
           'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
+          'GENOTYPE_DISTRIBUTION': GenotypeDistribution.UNIFORM,
+          'N_BEST_GENOTYPE': 100,
           'ALGORITHM_METHOD': AlgorithmMethod.PSGE,
           'PROB_MUTATION_GRAMMAR': 0.05,
           'NORMAL_DIST_SD': 0.5,
@@ -181,7 +201,19 @@ def set_parameters(arguments):
             return AlgorithmMethod.from_string(value)
         except ValueError as exc:
             raise argparse.ArgumentTypeError(str(exc))
-
+    def parse_genotype_distribution(value):
+        try:
+            return GenotypeDistribution.from_string(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(str(exc))
+    parser.add_argument('--genotype_distribution',
+                        dest='GENOTYPE_DISTRIBUTION',
+                        type=parse_genotype_distribution,
+                        help='Specifies the distribution for generating the initial genotype: uniform, normal, cma_es, vae.')
+    parser.add_argument('--n_best_genotype',
+                        dest='N_BEST_GENOTYPE',
+                        type=int,
+                        help='Specifies the number of best individuals to consider when updating the genotype distribution. Only used if --genotype_distribution is set to cma_es.')
     parser.add_argument('--learning_strategy',
                         dest='LEARNING_STRATEGY',
                         type=parse_learning_strategy,

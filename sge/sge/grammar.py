@@ -2,7 +2,7 @@ import re
 from sge.utilities import ordered_set
 import json
 import numpy as np
-from sge.parameters import LearningStrategy, AlgorithmMethod
+from sge.parameters import LearningStrategy, AlgorithmMethod, GenotypeDistribution
 
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
@@ -276,6 +276,7 @@ class Grammar:
 
 
     def recursive_individual_creation(self, genome, symbol, current_depth, probs):
+        # TODO: adapt according to genotype distribution
         codon = np.random.uniform()
         nt_index = self.index_of_non_terminal[symbol]
         if current_depth > self.max_init_depth:
@@ -370,7 +371,11 @@ class Grammar:
             nt_index = self.index_of_non_terminal[current_sym[0]]
 
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
-                codon = np.random.uniform()
+                if self.genotype_distribution == GenotypeDistribution.CMA_ES:
+                    print("It shouldn't enter here")
+                    exit(1)
+                else:
+                    codon = np.random.uniform()
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
