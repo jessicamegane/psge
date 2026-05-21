@@ -4,3 +4,15 @@
 .pytest_cache
 *.pyc
 dumps/*
+exp_visualization/*
+exp_visualization_fix/*
+exp_visualization_pt2/*
+experiments_sge_sgef/*
+experiments_sgef_100runs/*
+experiments_psge_right/*
+experiments_psge_final/*
+experiments_psge_probs/*
+experiments_psge_probs_alternate/*
+experiments_500_gen/*
+experiments_1000_gen/*
+exp_visualization_500_gen/*

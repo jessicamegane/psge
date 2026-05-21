@@ -371,11 +371,8 @@ class Grammar:
             nt_index = self.index_of_non_terminal[current_sym[0]]
 
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
-                if self.genotype_distribution == GenotypeDistribution.CMA_ES:
-                    print("It shouldn't enter here")
-                    exit(1)
-                else:
-                    codon = np.random.uniform()
+                # TODO: nota: cma es nao entra aqui, mas colocar na mesma aqui um if a definir o tipo de distribuição
+                codon = np.random.uniform()
                 if current_depth >= (self.max_depth - shortest_path[0]):
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:

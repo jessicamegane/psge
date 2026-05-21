@@ -87,7 +87,6 @@ class DiagonalGaussianDistribution:
         Why per-non-terminal update:
         - Each NT in the grammar has different expansion patterns
         - Independent learning preserves structural properties of the grammar
-        - Allows future context-aware updates (e.g., depth-based distributions)
         """
         elite = elite_individuals[:n_best]
         
