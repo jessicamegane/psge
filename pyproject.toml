@@ -3,16 +3,31 @@ name = "psge-req"
 version = "0.1.0"
 description = "PSGE requirements for reproducibility"
 authors = [
-    {name = "jessicamegane",email = "jessicac@dei.uc.pt"}
+    { name = "jessicamegane", email = "jessicac@dei.uc.pt" }
 ]
 readme = "README.md"
 requires-python = ">=3.11"
+
 dependencies = [
     "numpy",
     "pandas",
-    "torch",
     "pyyaml",
     "tqdm",
     "matplotlib",
-    "plotly"
+    "plotly",
+
+    # PyTorch CUDA 12.1
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1"
 ]
+
+[[tool.poetry.source]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
+[tool.poetry.dependencies]
+torch = { source = "pytorch-cu121" }
+torchvision = { source = "pytorch-cu121" }
+torchaudio = { source = "pytorch-cu121" }

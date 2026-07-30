@@ -7,15 +7,15 @@ MAX_JOBS=16   # change this to control parallelism
 SEEDS=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
     --mutation_std 0.5 \
     --prob_crossover 0 \
     --tsize 3 \
-    --elitism 100 \
+    --elitism 100 \ 
     --search_strategy standard \
     --learning_strategy independent \
     --algorithm_method psge_copsge \
@@ -25,11 +25,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/hybrid_psge_copsge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1_prob_mut_05_50/pagiepolynomial 
+    --experiment_name experiments_1000_gen/hybrid_psge_copsge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1_prob_mut_05_50/5bit_parity 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.parity_5 \
+#     --grammar grammars/5_bit_parity_grammar.txt \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -46,13 +46,13 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --n_best 1 \
 #     --remap False \
 #     --generations 1000 \
-#     --experiment_name experiments_1000_gen/hybrid_psge_copsge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1_prob_mut_05_50/pagiepolynomial 
+#     --experiment_name experiments_1000_gen/hybrid_psge_copsge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1_prob_mut_05_50/5bit_parity 
 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -68,11 +68,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/copsge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_prob_mut_05_50/pagiepolynomial 
+    --experiment_name experiments_1000_gen/copsge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_prob_mut_05_50/5bit_parity 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.parity_5 \
+#     --grammar grammars/5_bit_parity_grammar.txt \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -86,11 +86,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --normal_dist_sd 0.5 \
 #     --remap False \
 #     --generations 1000 \
-#     --experiment_name experiments_1000_gen/copsge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_prob_mut_05_50/pagiepolynomial 
+#     --experiment_name experiments_1000_gen/copsge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_prob_mut_05_50/5bit_parity 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -102,12 +102,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/psge_eda_elite_1_nbest1/pagiepolynomial 
+    --experiment_name experiments_1000_gen/psge_eda_elite_1_nbest1/5bit_parity 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -119,12 +119,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/psge_depth_based_eda_elite_1_nbest1/pagiepolynomial 
+    --experiment_name experiments_1000_gen/psge_depth_based_eda_elite_1_nbest1/5bit_parity 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --tsize 3 \
@@ -134,12 +134,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --algorithm_method sgef \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/sgef_eda_elite_1/pagiepolynomial 
+    --experiment_name experiments_1000_gen/sgef_eda_elite_1/5bit_parity 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -154,11 +154,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/psge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_1000_gen/psge_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/5bit_parity 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.parity_5 \
+#     --grammar grammars/5_bit_parity_grammar.txt \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -173,12 +173,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --n_best 1 \
 #     --remap False \
 #     --generations 1000 \
-#     --experiment_name experiments_1000_gen/psge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/pagiepolynomial 
+#     --experiment_name experiments_1000_gen/psge_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/5bit_parity 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -193,11 +193,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --n_best 1 \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/pagiepolynomial 
+    --experiment_name experiments_1000_gen/psge_depth_based_mut_uniform_05_prob_cross_0_tournament_3_elite_100_nbest1/5bit_parity 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.parity_5 \
+#     --grammar grammars/5_bit_parity_grammar.txt \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -212,12 +212,12 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --n_best 1 \
 #     --remap False \
 #     --generations 1000 \
-#     --experiment_name experiments_1000_gen/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/pagiepolynomial 
+#     --experiment_name experiments_1000_gen/psge_depth_based_mut_uniform_05_prob_cross_90_tournament_3_elite_100_nbest1/5bit_parity 
 
 
 printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-    python -m examples.symreg_pytorch pagiepolynomial \
-    --grammar grammars/regression_torch_2vars.pybnf \
+    python -m examples.parity_5 \
+    --grammar grammars/5_bit_parity_grammar.txt \
     --parameters parameters/auto_params.yaml \
     --seed {} --run {#} \
     --prob_mutation 0.05 \
@@ -229,11 +229,11 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
     --algorithm_method sgef \
     --remap False \
     --generations 1000 \
-    --experiment_name experiments_1000_gen/sgef_mut_uniform_05_prob_cross_0_tournament_3_elite_100/pagiepolynomial 
+    --experiment_name experiments_1000_gen/sgef_mut_uniform_05_prob_cross_0_tournament_3_elite_100/5bit_parity 
 
 # printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
-#     python -m examples.symreg_pytorch pagiepolynomial \
-#     --grammar grammars/regression_torch_2vars.pybnf \
+#     python -m examples.parity_5 \
+#     --grammar grammars/5_bit_parity_grammar.txt \
 #     --parameters parameters/auto_params.yaml \
 #     --seed {} --run {#} \
 #     --prob_mutation 0.05 \
@@ -245,6 +245,6 @@ printf '%s\n' "${SEEDS[@]}" | parallel -j $MAX_JOBS \
 #     --algorithm_method sgef \
 #     --remap False \
 #     --generations 1000 \
-#     --experiment_name experiments_1000_gen/sgef_mut_uniform_05_prob_cross_90_tournament_3_elite_100/pagiepolynomial 
+#     --experiment_name experiments_1000_gen/sgef_mut_uniform_05_prob_cross_90_tournament_3_elite_100/5bit_parity 
 
 
