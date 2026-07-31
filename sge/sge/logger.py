@@ -85,6 +85,19 @@ def save_step(generation, population):
     open('%s/iteration_%d.json' % (params['RUN_FOLDER'], generation), 'a').write(c)
 
 
+def save_distribution(generation, distribution):
+    if distribution is None:
+        return
+    dist_data = {
+        'generation': generation,
+        'distribution': distribution.get_state()
+    }
+    path = '%s/genotype_distribution.json' % (params['RUN_FOLDER'])
+    with open(path, 'a') as f:
+        json.dump(dist_data, f, cls=NumpyEncoder)
+        f.write('\n')
+
+
 def save_parameters():
     params_lower = dict((k.lower(), v) for k, v in params.items())
     params_lower['command'] = ' '.join(os.sys.argv)
