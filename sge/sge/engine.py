@@ -1,7 +1,7 @@
 import sys
 import sge.grammar as grammar
 import sge.logger as logger
-from sge.distribution import DiagonalGaussianDistribution, create_genotype_from_samples
+from sge.distribution import DiagonalGaussianDistribution
 from datetime import datetime
 from tqdm import tqdm
 import copy
@@ -49,8 +49,8 @@ def generate_random_individual(max_expansions):
         if params['GENOTYPE_DISTRIBUTION'] == GenotypeDistribution.CMA_ES:
             # Sample from learned Gaussian distributions per non-terminal
             if _genotype_distribution is not None:
-                samples = _genotype_distribution.sample()
-                genotype = create_genotype_from_samples(samples, grammar.get_non_terminals())
+                # sample_genotype returns a PSGE-style genotype split per non-terminal
+                genotype = _genotype_distribution.sample_genotype()
             else:
                 # Fallback to uniform if distribution not initialized
                 genotype = [[[-1, np.random.uniform(0, 1), -1] for _ in range(max_expansions[nt])] for nt in grammar.get_non_terminals()]
@@ -108,7 +108,7 @@ def setup(parameters_file_path = None):
     grammar.set_path(params['GRAMMAR'])
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
-    grammar.read_grammar(params['LEARNING_STRATEGY'])
+    grammar.read_grammar(params['LEARNING_STRATEGY'], params['ALGORITHM_METHOD'])
     
     if params['GENOTYPE_DISTRIBUTION'] == GenotypeDistribution.CMA_ES:
         print("Initializing CMA-ES-inspired genotype distribution")
@@ -161,6 +161,7 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         # This refines the Gaussian sampling for next generation
         if params['GENOTYPE_DISTRIBUTION'] == GenotypeDistribution.CMA_ES:
             _genotype_distribution.update(population, params['N_BEST_GENOTYPE'])
+            logger.save_distribution(it, _genotype_distribution)
 
         if params['SEARCH_STRATEGY'] == SearchStrategy.EDA or (params['SEARCH_STRATEGY'] == SearchStrategy.HYBRID and it % 2 == 0):
             new_population = list(make_initial_population(params['POPSIZE'] - params['ELITISM']))
