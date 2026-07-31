@@ -108,12 +108,8 @@ def save_plotly_boxplot(df, x, y, title, save_path, category_order=None, color_d
 
 
 def main(show_std=True):
-    # base_dir = "/Users/jessicamegane/Downloads/fix_repo/hybrid psge copsge/psge/sge/experiments_500_gen/"
-    # vis_dir = "exp_visualization_500_gen"
-    # os.makedirs(vis_dir, exist_ok=True)
-
-    base_dir = "/media/storage/jessica/search_strategy/psge/sge/experiments_1000_gen/"
-    vis_dir = "exp_visualization_1000_gen"
+    base_dir = "/Users/jessicamegane/Downloads/fix_repo/hybrid psge copsge/psge/sge/experiments_500_gen/"
+    vis_dir = "exp_visualization_500_gen"
     os.makedirs(vis_dir, exist_ok=True)
 
  
