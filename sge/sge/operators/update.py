@@ -1,7 +1,7 @@
 import sge.grammar as grammar
 import copy
 import numpy as np
-from sge.parameters import LearningStrategy, SearchStrategy
+from sge.parameters import LearningStrategy
 
 '''
     MAIN UPDATE FUNCTION
