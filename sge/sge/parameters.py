@@ -113,6 +113,7 @@ params = {'PARAMETERS': None,
           'ALGORITHM_METHOD': AlgorithmMethod.PSGE,
           'PROB_MUTATION_GRAMMAR': 0.05,
           'NORMAL_DIST_SD': 0.5,
+          'RESUME_FROM': None,
           }
 
 
@@ -126,6 +127,8 @@ def load_parameters(file_name=None):
         params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
     if 'ALGORITHM_METHOD' in params:
         params['ALGORITHM_METHOD'] = AlgorithmMethod.from_string(params['ALGORITHM_METHOD'])
+    if 'GENOTYPE_DISTRIBUTION' in params:
+        params['GENOTYPE_DISTRIBUTION'] = GenotypeDistribution.from_string(params['GENOTYPE_DISTRIBUTION'])
 
 
 def set_parameters(arguments):
@@ -140,6 +143,10 @@ def set_parameters(arguments):
                         help='Specifies the parameters file to be used. Must '
                              'include the full file extension. Full file path'
                              'does NOT need to be specified.')
+    parser.add_argument('--resume',
+                        dest='RESUME_FROM',
+                        type=str,
+                        help='Resume from a run folder or checkpoint file.')
     parser.add_argument('--popsize',
                         dest='POPSIZE',
                         type=int,
@@ -319,3 +326,5 @@ def set_parameters(arguments):
         params['SEARCH_STRATEGY'] = SearchStrategy.from_string(params['SEARCH_STRATEGY'])
     if 'ALGORITHM_METHOD' in params:
         params['ALGORITHM_METHOD'] = AlgorithmMethod.from_string(params['ALGORITHM_METHOD'])
+    if 'GENOTYPE_DISTRIBUTION' in params:
+        params['GENOTYPE_DISTRIBUTION'] = GenotypeDistribution.from_string(params['GENOTYPE_DISTRIBUTION'])

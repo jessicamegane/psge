@@ -77,6 +77,46 @@ Here is the list of possible parameters, and how to call them.
 | --include_genotype | bool | Specifies if the genotype is to be included in the log files |
 | --save_step | int | Specifies how often stats are saved. |
 | --verbose | bool | Turns on the verbose output of the program. |
+| --resume | str | Resumes an interrupted run from a run folder or a specific checkpoint file. |
+
+### Checkpoints and recovery
+
+The main evolutionary algorithm writes a complete recovery checkpoint after every
+generation. A checkpoint includes the full population, learned grammar and genotype
+distributions, resolved parameters and seed, best individuals, and random-generator
+states. Only the two newest checkpoints are retained. After a run finishes normally,
+the checkpoint files are removed; all normal experiment logs remain available.
+
+To continue an interrupted experiment, run the same example and problem arguments and
+pass the interrupted run folder:
+
+```
+python3 -m examples.symreg --resume dumps/Test/1.0/run_1_123456789
+```
+
+The newest valid checkpoint is selected automatically. If it is incomplete or corrupt,
+the previous checkpoint is used. A specific checkpoint file can also be supplied.
+Recovery never modifies or deletes existing logs. Continued output is written under the
+run's `recovery_logs/` directory, and `recovery_manifest.json` records which log segments
+form the canonical run history.
+
+Programmatic recovery is also available:
+
+```python
+import sge
+
+sge.resume_evolutionary_algorithm(
+    evaluation_function=eval_func,
+    resume_from="dumps/Test/1.0/run_1_123456789",
+)
+```
+
+Use `sge.get_canonical_log_segments(run_folder)` to resolve the original and recovery
+log directories and their valid generation ranges, or
+`sge.read_canonical_progress(run_folder)` to read the canonical progress rows. Since
+checkpoints use Python serialization, only load checkpoint files produced locally by a
+trusted experiment. Exact recovery also requires unchanged code, grammar, input data,
+and evaluator behavior.
 
 ### Mutation
 

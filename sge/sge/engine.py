@@ -1,6 +1,7 @@
 import sys
 import sge.grammar as grammar
 import sge.logger as logger
+import sge.checkpoint as checkpoint
 from sge.distribution import DiagonalGaussianDistribution
 from datetime import datetime
 from tqdm import tqdm
@@ -93,18 +94,8 @@ def evaluate(ind, eval_func):
     ind['grammar_counter'] = gram_counter
 
 
-def setup(parameters_file_path = None):
+def _initialize_grammar_and_distribution():
     global _genotype_distribution
-    
-    if parameters_file_path is not None:
-        load_parameters(file_name=parameters_file_path)
-    set_parameters(sys.argv[1:])
-    if params['SEED'] is None:
-        params['SEED'] = int(datetime.now().microsecond)
-    params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
-
-    logger.prepare_dumps()
-    np.random.seed(int(params['SEED']))
     grammar.set_path(params['GRAMMAR'])
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
@@ -120,19 +111,152 @@ def setup(parameters_file_path = None):
             max_expansions=max_expansions,
             init_std=0.2
         )
+    else:
+        _genotype_distribution = None
+
+
+def _restore_checkpoint(resume_from):
+    global _genotype_distribution
+
+    restored, checkpoint_file = checkpoint.load_checkpoint(resume_from)
+    restored_params = restored.get('params')
+    if not isinstance(restored_params, dict):
+        raise checkpoint.CheckpointError('Checkpoint parameters are missing or invalid')
+
+    actual_run_folder = str(checkpoint_file.parent.parent)
+    params.clear()
+    params.update(copy.deepcopy(restored_params))
+    params['RUN_FOLDER'] = actual_run_folder
+    params['RESUME_FROM'] = str(resume_from)
+
+    if checkpoint.parameters_sha256(params) != restored.get('parameters_sha256'):
+        raise checkpoint.CheckpointError(
+            'Checkpoint parameter fingerprint does not match its saved parameters'
+        )
+
+    parameters_path = params.get('PARAMETERS')
+    saved_parameters_hash = restored.get('parameters_file_sha256')
+    if parameters_path and saved_parameters_hash:
+        try:
+            current_parameters_hash = checkpoint.file_sha256(parameters_path)
+        except OSError as exc:
+            raise checkpoint.CheckpointError(
+                'The parameter file used by the checkpoint is unavailable: %s'
+                % parameters_path
+            ) from exc
+        if current_parameters_hash != saved_parameters_hash:
+            raise checkpoint.CheckpointError(
+                'The parameter file has changed since this checkpoint was created'
+            )
+
+    _initialize_grammar_and_distribution()
+    grammar_path = params['GRAMMAR']
+    try:
+        current_grammar_hash = checkpoint.file_sha256(grammar_path)
+    except OSError as exc:
+        raise checkpoint.CheckpointError(
+            'The grammar file used by the checkpoint is unavailable: %s'
+            % grammar_path
+        ) from exc
+    if current_grammar_hash != restored.get('grammar_sha256'):
+        raise checkpoint.CheckpointError(
+            'The grammar file has changed since this checkpoint was created'
+        )
+    try:
+        grammar.set_pcfg(restored['grammar_pcfg'])
+        distribution_state = restored.get('genotype_distribution')
+        if distribution_state is not None:
+            if _genotype_distribution is None:
+                raise checkpoint.CheckpointError(
+                    'Checkpoint contains a genotype distribution that is disabled by its parameters'
+                )
+            _genotype_distribution.set_state(distribution_state)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise checkpoint.CheckpointError('Checkpoint model state is incompatible') from exc
+
+    if len(restored['population']) != int(params['POPSIZE']):
+        raise checkpoint.CheckpointError(
+            'Checkpoint population size does not match the saved POPSIZE parameter'
+        )
+    checkpoint.restore_rng_state(restored['rng_state'])
+    logger.prepare_recovery_logs(
+        actual_run_folder,
+        checkpoint_file,
+        restored['completed_generation'],
+        restored['next_generation'],
+    )
+    return restored
+
+
+def setup(parameters_file_path=None, resume_from=None):
+    if parameters_file_path is not None:
+        load_parameters(file_name=parameters_file_path)
+        params['PARAMETERS'] = parameters_file_path
+    set_parameters(sys.argv[1:])
+    if resume_from is not None:
+        params['RESUME_FROM'] = resume_from
+    if params.get('RESUME_FROM'):
+        return _restore_checkpoint(params['RESUME_FROM'])
+
+    if params['SEED'] is None:
+        params['SEED'] = int(datetime.now().microsecond)
+    params['EXPERIMENT_NAME'] += "/" + str(params['LEARNING_FACTOR'] * 100)
+    logger.prepare_dumps()
+    checkpoint.seed_random_generators(int(params['SEED']))
+    _initialize_grammar_and_distribution()
+    return None
+
+
+def _checkpoint_state(completed_generation, next_generation, population,
+                      previous_population, best, best_gen, flag):
+    parameters_path = params.get('PARAMETERS')
+    return {
+        'completed_generation': int(completed_generation),
+        'next_generation': int(next_generation),
+        'population': population,
+        'previous_population': previous_population,
+        'best': best,
+        'best_gen': best_gen,
+        'flag': bool(flag),
+        'grammar_pcfg': copy.deepcopy(grammar.get_pcfg()),
+        'genotype_distribution': (
+            _genotype_distribution.get_state()
+            if _genotype_distribution is not None else None
+        ),
+        'params': copy.deepcopy(params),
+        'parameters_sha256': checkpoint.parameters_sha256(params),
+        'parameters_file_sha256': (
+            checkpoint.file_sha256(parameters_path)
+            if parameters_path else None
+        ),
+        'grammar_sha256': checkpoint.file_sha256(params['GRAMMAR']),
+        'command': list(sys.argv),
+        'rng_state': checkpoint.capture_rng_state(),
+    }
 
 
 
-def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
-    setup(parameters_file_path=parameters_file)
-    population = list(make_initial_population(params['POPSIZE']))
-    flag = False    # alternate False - best overall
-    best = None
-    it = 0
-    for i in tqdm(population):
-        if i['fitness'] is None:
-            evaluate(i, evaluation_function)
-    previous_population = copy.deepcopy(population)
+def evolutionary_algorithm(evaluation_function=None, parameters_file=None,
+                           resume_from=None):
+    restored = setup(parameters_file_path=parameters_file, resume_from=resume_from)
+    if restored is None:
+        population = list(make_initial_population(params['POPSIZE']))
+        flag = False    # alternate False - best overall
+        best = None
+        best_gen = None
+        it = 0
+        for i in tqdm(population):
+            if i['fitness'] is None:
+                evaluate(i, evaluation_function)
+        previous_population = copy.deepcopy(population)
+    else:
+        population = restored['population']
+        previous_population = restored['previous_population']
+        best = restored['best']
+        best_gen = restored['best_gen']
+        flag = restored['flag']
+        it = int(restored['next_generation'])
+
     while it <= params['GENERATIONS']:        
 
         population.sort(key=lambda x: x['fitness'])
@@ -219,3 +343,27 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         population = new_population
         it += 1
 
+        checkpoint.save_checkpoint(
+            params['RUN_FOLDER'],
+            _checkpoint_state(
+                completed_generation=it - 1,
+                next_generation=it,
+                population=population,
+                previous_population=previous_population,
+                best=best,
+                best_gen=best_gen,
+                flag=flag,
+            ),
+            keep=2,
+        )
+
+    checkpoint.cleanup_checkpoints(params['RUN_FOLDER'])
+    return best
+
+
+def resume_evolutionary_algorithm(evaluation_function, resume_from):
+    """Resume an experiment from a run folder or a specific checkpoint file."""
+    return evolutionary_algorithm(
+        evaluation_function=evaluation_function,
+        resume_from=resume_from,
+    )

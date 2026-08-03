@@ -585,6 +585,16 @@ class Grammar:
     def get_pcfg(self):
         return self.pcfg
 
+    def set_pcfg(self, pcfg):
+        restored = np.array(pcfg, copy=True)
+        if self.pcfg is not None and restored.shape != np.asarray(self.pcfg).shape:
+            raise ValueError(
+                "Checkpoint grammar probability shape %s does not match grammar shape %s"
+                % (restored.shape, np.asarray(self.pcfg).shape)
+            )
+        self.pcfg = restored
+        self.pcfg_mask = self.pcfg != 0
+
     def get_shortest_path(self):
         return self.shortest_path
     
@@ -724,6 +734,7 @@ get_non_recursive_options = _inst.get_non_recursive_options
 get_count_references_to_non_terminals = _inst.count_references_to_non_terminals
 get_dict = _inst.get_dict
 get_pcfg = _inst.get_pcfg
+set_pcfg = _inst.set_pcfg
 get_probability = _inst.get_probability
 get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
 get_mask = _inst.get_mask
@@ -738,4 +749,3 @@ if __name__ == "__main__":
     genome = [[0], [0, 3, 3], [0], [], [1, 1]]
     mapping_numbers = [0] * len(genome)
     print(g.mapping(genome, mapping_numbers, needs_python_filter=True))
-

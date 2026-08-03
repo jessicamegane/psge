@@ -88,6 +88,21 @@ class DiagonalGaussianDistribution:
     def get_state(self) -> Dict:
         return {'means': self.means.tolist(), 'stds': self.stds.tolist()}
 
+    def set_state(self, state: Dict) -> None:
+        means = np.asarray(state['means'], dtype=float)
+        stds = np.asarray(state['stds'], dtype=float)
+        expected_shape = (self.total_size,)
+        if means.shape != expected_shape or stds.shape != expected_shape:
+            raise ValueError(
+                "Checkpoint genotype distribution shape does not match the current grammar"
+            )
+        if not np.all(np.isfinite(means)) or not np.all(np.isfinite(stds)):
+            raise ValueError("Checkpoint genotype distribution contains non-finite values")
+        if np.any(stds < 0):
+            raise ValueError("Checkpoint genotype distribution contains negative deviations")
+        self.means = means.copy()
+        self.stds = stds.copy()
+
 
 def create_genotype_from_samples(samples: np.ndarray,
                                  non_terminals: List[str],
