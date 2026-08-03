@@ -28,9 +28,11 @@ def make_initial_population(pop_size):
 
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
-    phen, tree_depth, gram_counter = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
+    phen_tokens, tree_depth, gram_counter = grammar.mapping(grammar.get_pcfg(), ind['genotype'], mapping_values)
+    phen = "".join(phen_tokens)
     quality, other_info = eval_func.evaluate(phen)
-    ind['phenotype'] = phen
+    ind['phenotype'] = phen_tokens
+    ind['phenotype_string'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
@@ -90,4 +92,3 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None):
         population = new_population
         it += 1
         # input()
-

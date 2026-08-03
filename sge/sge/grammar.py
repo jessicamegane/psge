@@ -355,9 +355,13 @@ class Grammar:
         gram_counter = self.generate_empty_grammar_counter()
         output = []
         max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, self.start_rule, 0, output)
-        output = "".join(output)
         if self.grammar_file.endswith("pybnf"):
-            output = self.python_filter(output, needs_python_filter)
+            if needs_python_filter:
+                # Indentation filtering operates on the complete program.
+                output = [self.python_filter("".join(output), True)]
+            else:
+                # Keep grammar terminals tokenized while applying substitutions.
+                output = [self.python_filter(token, False) for token in output]
         return output, max_depth, gram_counter
 
     def _recursive_mapping(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):

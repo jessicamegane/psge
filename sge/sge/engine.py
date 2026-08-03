@@ -84,9 +84,11 @@ def evaluate(ind, eval_func):
         probabilistic_distribution = ind['pcfg']
     else:
         probabilistic_distribution = grammar.get_pcfg()
-    phen, tree_depth, gram_counter = grammar.mapping(probabilistic_distribution, ind['genotype'], mapping_values)
+    phen_tokens, tree_depth, gram_counter = grammar.mapping(probabilistic_distribution, ind['genotype'], mapping_values)
+    phen = "".join(phen_tokens)
     quality, other_info = eval_func.evaluate(phen)
-    ind['phenotype'] = phen
+    ind['phenotype'] = phen_tokens
+    ind['phenotype_string'] = phen
     ind['fitness'] = quality
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values

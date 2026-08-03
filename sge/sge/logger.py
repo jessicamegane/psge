@@ -20,18 +20,38 @@ def _log_folder():
     return params.get('LOG_FOLDER', params['RUN_FOLDER'])
     
 def calculate_unique_percentage(population_phenotypes, previous_population=None):
+    population_phenotypes = [tuple(phenotype) for phenotype in population_phenotypes]
     unique_phenotypes = set(population_phenotypes)
     unique_count = len(unique_phenotypes)
     total_count = len(population_phenotypes)
     unique_percentage = (unique_count / total_count) * 100 if total_count > 0 else 0
 
     if previous_population is not None:
-        previous_phenotypes = set(ind['phenotype'] for ind in previous_population)
+        previous_phenotypes = set(tuple(ind['phenotype']) for ind in previous_population)
         new_count = sum(1 for p in population_phenotypes if p not in previous_phenotypes)
         percentage_new_individuals = (new_count / total_count) * 100 if total_count > 0 else 0
         return unique_percentage, percentage_new_individuals
 
     return unique_percentage, 0
+
+
+def levenshtein_distances(tokens, previous_tokens):
+    """Return raw and max-length-normalized Levenshtein token distance."""
+    previous_row = list(range(len(previous_tokens) + 1))
+    for row_index, token in enumerate(tokens, start=1):
+        current_row = [row_index]
+        for column_index, previous_token in enumerate(previous_tokens, start=1):
+            current_row.append(min(
+                current_row[-1] + 1,
+                previous_row[column_index] + 1,
+                previous_row[column_index - 1] + (token != previous_token),
+            ))
+        previous_row = current_row
+
+    raw_distance = previous_row[-1]
+    maximum_length = max(len(tokens), len(previous_tokens))
+    normalized_distance = raw_distance / maximum_length if maximum_length else 0.0
+    return raw_distance, normalized_distance
 
 
 def evolution_progress(generation, pop, best, best_gen, gram, previous_population=None):
@@ -41,8 +61,15 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
     length_used_genotype_best = sum(i for i in best['mapping_values'])
     phenotypes = [i['phenotype'] for i in pop]
     unique_percentage, percentage_new_individuals = calculate_unique_percentage(phenotypes, previous_population)
+    if previous_population:
+        previous_best = min(previous_population, key=lambda individual: individual['fitness'])
+        raw_distance, normalized_distance = levenshtein_distances(
+            best_gen['phenotype'], previous_best['phenotype']
+        )
+    else:
+        raw_distance, normalized_distance = 0, 0.0
 
-    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.2f\t%.2f' % (
+    data = '%4d\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.2f\t%.2f\t%d\t%.6e' % (
         generation,
         best['fitness'],
         best_gen['fitness'],
@@ -56,7 +83,9 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
         np.nanstd(depth_samples),
         length_used_genotype_best,
         unique_percentage,
-        percentage_new_individuals
+        percentage_new_individuals,
+        raw_distance,
+        normalized_distance
     )
 
     if params['VERBOSE']:
