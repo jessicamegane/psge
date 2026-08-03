@@ -1,3 +1,4 @@
+import copy
 import numpy
 import sge.grammar as grammar
 from sge.parameters import params, AlgorithmMethod
@@ -21,7 +22,7 @@ def crossover(p1, p2):
     
     # compute nem individual
     if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
-        gram = p1['pcfg'] if p1['fitness'] < p2['fitness'] else p2['pcfg']
+        gram = copy.deepcopy(p1['pcfg'] if p1['fitness'] < p2['fitness'] else p2['pcfg'])
         _, tree_depth, gram_counter = grammar.mapping(gram, genotype, mapping_values)
         offspring = {'genotype': genotype, 'fitness': None, 'mapping_values': mapping_values, 'tree_depth': tree_depth, 'grammar_counter': gram_counter, 'pcfg': gram}
     else:

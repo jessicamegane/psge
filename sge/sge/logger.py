@@ -145,7 +145,7 @@ def prepare_dumps():
     try:
         params['RUN_FOLDER'] = str(params['EXPERIMENT_NAME']) + "/run_" + str(params['RUN']) + "_" + str(int(time.time() * 1000000))
         os.makedirs('%s' % (params['RUN_FOLDER']))
-    except FileExistsError as e:
+    except FileExistsError:
         pass
     params['LOG_FOLDER'] = params['RUN_FOLDER']
     save_parameters()

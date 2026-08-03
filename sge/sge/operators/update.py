@@ -8,6 +8,10 @@ from sge.parameters import LearningStrategy
 '''
 
 def update_distributions(learning_strategy, population, lf, n_best):
+    if n_best <= 0:
+        raise ValueError("n_best must be greater than zero")
+    if not population:
+        raise ValueError("population must not be empty")
     if learning_strategy == LearningStrategy.INDEPENDENT:
         print("PSGE UPDATE")
         independent_update(population, lf, n_best)
