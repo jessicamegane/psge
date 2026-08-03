@@ -78,6 +78,11 @@ def make_initial_population(pop_size):
         yield generate_random_individual(count)
 
 
+def has_zero_fitness(population):
+    """Return whether the evaluated population contains an exact solution."""
+    return any(individual.get('fitness') == 0 for individual in population)
+
+
 def evaluate(ind, eval_func):
     mapping_values = [0 for _ in ind['genotype']]
     if params['ALGORITHM_METHOD'] == AlgorithmMethod.COPSGE or params['ALGORITHM_METHOD'] == AlgorithmMethod.PSGE_COPSGE:
@@ -282,6 +287,10 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None,
 
      
         logger.evolution_progress(it, population, best, best_gen, grammar.get_pcfg(),previous_population)
+
+        if has_zero_fitness(population):
+            checkpoint.cleanup_checkpoints(params['RUN_FOLDER'])
+            return best
         
         # Update genotype distributions based on elite individuals
         # This refines the Gaussian sampling for next generation

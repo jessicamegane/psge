@@ -11,6 +11,9 @@ Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Nei
 class LearningStrategy(Enum):
     INDEPENDENT = 'independent'
     DEPTH_BASED = 'depth_based'
+    CONTEXT_AWARE = 'context_aware'
+    CONTEXT_AWARE_DEPTH = 'context_aware_depth'
+    CONTEXT_AWARE_PREVIOUS = 'context_aware_previous'
     NONE = 'none'
 
     @classmethod
@@ -224,7 +227,9 @@ def set_parameters(arguments):
     parser.add_argument('--learning_strategy',
                         dest='LEARNING_STRATEGY',
                         type=parse_learning_strategy,
-                        help='Specifies the learning strategy to be used. Options: independent, depth_based.')
+                        help=('Learning strategy: independent, depth_based, '
+                              'context_aware, context_aware_depth, '
+                              'context_aware_previous, or none.'))
     parser.add_argument('--search_strategy',
                         dest='SEARCH_STRATEGY',
                         type=parse_search_strategy,

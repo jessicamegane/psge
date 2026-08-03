@@ -1,8 +1,9 @@
 import re
+import copy
 from sge.utilities import ordered_set
 import json
 import numpy as np
-from sge.parameters import LearningStrategy, AlgorithmMethod, GenotypeDistribution
+from sge.parameters import LearningStrategy, AlgorithmMethod
 
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
@@ -11,6 +12,13 @@ class Grammar:
     NT_PATTERN = "(<.+?>)"
     RULE_SEPARATOR = "::="
     PRODUCTION_SEPARATOR = "|"
+    ROOT_CONTEXT = "__ROOT__"
+    PREVIOUS_START_CONTEXT = "__START__"
+    CONTEXT_STRATEGIES = {
+        LearningStrategy.CONTEXT_AWARE,
+        LearningStrategy.CONTEXT_AWARE_DEPTH,
+        LearningStrategy.CONTEXT_AWARE_PREVIOUS,
+    }
 
     def __init__(self):
         self.grammar_file = None
@@ -94,11 +102,18 @@ class Grammar:
         
         self.learning_strategy = LearningStrategy.from_string(learning_strategy) if learning_strategy is not None else None
         self.algorithm_method = AlgorithmMethod.from_string(algorithm_method) if algorithm_method is not None else None
+        if (self.learning_strategy in self.CONTEXT_STRATEGIES and
+                self.algorithm_method in {AlgorithmMethod.COPSGE,
+                                          AlgorithmMethod.PSGE_COPSGE}):
+            raise ValueError(
+                "%s is only supported with shared-grammar PSGE/SGEF methods"
+                % self.learning_strategy.value
+            )
         self.generate_uniform_pcfg()
         if self.pcfg_path is not None:
-            # load PCFG probabilities from json file. List of lists, n*n, with n = max number of production rules of a NT
             with open(self.pcfg_path) as f:
-                self.pcfg = np.array(json.load(f))
+                loaded_pcfg = json.load(f)
+            self.set_pcfg(loaded_pcfg)
         # self.compute_non_recursive_options()
         self.find_shortest_path()
         self.number_of_references_by_non_terminal = self.calculate_max_expansions_recursive({}, self.start_rule, self.max_depth)
@@ -107,7 +122,7 @@ class Grammar:
     def find_shortest_path(self):
         open_symbols = []
         for nt in self.grammar.keys():
-            depth = self.minimum_path_calc((nt,'NT'), open_symbols)
+            self.minimum_path_calc((nt, 'NT'), open_symbols)
             
     def minimum_path_calc(self, current_symbol, open_symbols):
         if current_symbol[1] == self.T:
@@ -148,7 +163,12 @@ class Grammar:
         """
         assigns uniform probabilities to grammar
         """
-        if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+        if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            self.pcfg = [{} for _ in self.grammar]
+            for i, nt in enumerate(self.grammar):
+                self.index_of_non_terminal.setdefault(nt, i)
+            self.pcfg_mask = None
+        elif self.learning_strategy == LearningStrategy.DEPTH_BASED:
             array = np.empty(shape=(len(self.grammar.keys()),(self.max_depth + 1)),dtype=object)
 
             for i, nt in enumerate(self.grammar):
@@ -210,7 +230,50 @@ class Grammar:
                 non_recursive_elements += [options]
         return non_recursive_elements
     
-    def get_probability(self, grammar, nt_index, index, current_depth=None):
+    def _uniform_probabilities(self, nt_index):
+        nt = list(self.get_non_terminals())[nt_index]
+        count = len(self.grammar[nt])
+        return np.full(count, 1.0 / count)
+
+    def _default_context(self, current_depth=None):
+        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
+            return self.ROOT_CONTEXT
+        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+            return (self.ROOT_CONTEXT, 0 if current_depth is None else current_depth)
+        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+            return self.PREVIOUS_START_CONTEXT
+        return None
+
+    def get_context_probabilities(self, grammar, nt_index, context=None,
+                                  create=True):
+        """Get a sparse context distribution, initializing it uniformly."""
+        if grammar is None:
+            grammar = self.pcfg
+        if context is None:
+            context = self._default_context()
+        table = grammar[nt_index]
+        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+            parent, depth = context
+            parent_table = table.setdefault(parent, {}) if create else table.get(parent)
+            if parent_table is None:
+                return self._uniform_probabilities(nt_index)
+            if depth not in parent_table:
+                if not create:
+                    return self._uniform_probabilities(nt_index)
+                parent_table[depth] = self._uniform_probabilities(nt_index)
+            return parent_table[depth]
+        if context not in table:
+            if not create:
+                return self._uniform_probabilities(nt_index)
+            table[context] = self._uniform_probabilities(nt_index)
+        return table[context]
+
+    def get_probability(self, grammar, nt_index, index, current_depth=None,
+                        context=None):
+        if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            if context is None:
+                context = self._default_context(current_depth)
+            return self.get_context_probabilities(grammar, nt_index, context)[index]
         if grammar is None:
             return self.pcfg[nt_index,index]
         if self.algorithm_method == AlgorithmMethod.PSGE_COPSGE:
@@ -240,7 +303,12 @@ class Grammar:
             else:
                 return grammar[nt_index,index]
         
-    def get_probabilities_non_terminal(self, grammar, nt_index, current_depth=None):
+    def get_probabilities_non_terminal(self, grammar, nt_index,
+                                       current_depth=None, context=None):
+        if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            if context is None:
+                context = self._default_context(current_depth)
+            return self.get_context_probabilities(grammar, nt_index, context)
         if grammar is None:
             return self.pcfg[nt_index]
         if self.algorithm_method == AlgorithmMethod.PSGE_COPSGE:
@@ -257,14 +325,31 @@ class Grammar:
                 return grammar[nt_index]
     
     def generate_empty_grammar_counter(self):
-        if self.learning_strategy == LearningStrategy.DEPTH_BASED:
+        if (self.learning_strategy == LearningStrategy.DEPTH_BASED or
+                self.learning_strategy in self.CONTEXT_STRATEGIES):
             gram_counter = [{} for nt in self.get_non_terminals()]
         else:
             gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
         return gram_counter
 
 
-    def update_grammar_counter(self, grammar_counter, symbol, expansion_possibility, depth):
+    def update_grammar_counter(self, grammar_counter, symbol,
+                               expansion_possibility, depth, context=None):
+        if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            nt = list(self.get_non_terminals())[symbol]
+            number_productions = len(self.grammar[nt])
+            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+                parent, context_depth = context
+                parent_table = grammar_counter[symbol].setdefault(parent, {})
+                counts = parent_table.setdefault(
+                    context_depth, [0] * number_productions
+                )
+            else:
+                counts = grammar_counter[symbol].setdefault(
+                    context, [0] * number_productions
+                )
+            counts[expansion_possibility] += 1
+            return grammar_counter
         if self.learning_strategy == LearningStrategy.DEPTH_BASED:
             if depth not in grammar_counter[symbol]:
                 nt = list(self.get_non_terminals())[symbol]
@@ -353,8 +438,13 @@ class Grammar:
             positions_to_map = [0] * len(self.ordered_non_terminals)
         # gram_counter = [[0] * len(self.grammar[nt]) for nt in self.get_non_terminals()]
         gram_counter = self.generate_empty_grammar_counter()
+        previous_expansions = [self.PREVIOUS_START_CONTEXT
+                               for _ in self.ordered_non_terminals]
         output = []
-        max_depth = self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, self.start_rule, 0, output)
+        max_depth = self._recursive_mapping(
+            probs, mapping_rules, positions_to_map, gram_counter,
+            self.start_rule, 0, output, None, previous_expansions
+        )
         if self.grammar_file.endswith("pybnf"):
             if needs_python_filter:
                 # Indentation filtering operates on the complete program.
@@ -364,7 +454,9 @@ class Grammar:
                 output = [self.python_filter(token, False) for token in output]
         return output, max_depth, gram_counter
 
-    def _recursive_mapping(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):
+    def _recursive_mapping(self, probs, mapping_rules, positions_to_map,
+                           gram_counter, current_sym, current_depth, output,
+                           parent_symbol=None, previous_expansions=None):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -373,6 +465,14 @@ class Grammar:
             choices_expand = self.grammar[current_sym[0]]
             shortest_path = self.shortest_path[current_sym]
             nt_index = self.index_of_non_terminal[current_sym[0]]
+            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
+                context = parent_symbol or self.ROOT_CONTEXT
+            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+                context = (parent_symbol or self.ROOT_CONTEXT, current_depth)
+            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+                context = previous_expansions[nt_index]
+            else:
+                context = None
 
             if positions_to_map[current_sym_pos] >= len(mapping_rules[current_sym_pos]):
                 # TODO: nota: cma es nao entra aqui, mas colocar na mesma aqui um if a definir o tipo de distribuição
@@ -381,14 +481,14 @@ class Grammar:
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth, context)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0:
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(probs, nt_index, index, current_depth) / prob_non_recursive
+                            new_prob = self.get_probability(probs, nt_index, index, current_depth, context) / prob_non_recursive
                         # new_prob = probs[nt_index][index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
@@ -397,7 +497,9 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(probs, nt_index, index, current_depth)
+                        prob_aux += self.get_probability(
+                            probs, nt_index, index, current_depth, context
+                        )
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
@@ -413,14 +515,14 @@ class Grammar:
                     prob_non_recursive = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
-                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth)
+                        prob_non_recursive += self.get_probability(probs, nt_index, index, current_depth, context)
                     prob_aux = 0.0
                     for rule in shortest_path[1:]:
                         index = self.grammar[current_sym[0]].index(rule)
                         if prob_non_recursive == 0.0:
                             new_prob = 1.0 / len(shortest_path[1:])
                         else:
-                            new_prob = self.get_probability(probs, nt_index, index, current_depth) / prob_non_recursive
+                            new_prob = self.get_probability(probs, nt_index, index, current_depth, context) / prob_non_recursive
                         # new_prob = probs[nt_index][index] / prob_non_recursive
                         prob_aux += new_prob
                         if codon <= round(prob_aux,3):
@@ -429,21 +531,33 @@ class Grammar:
                 else:
                     prob_aux = 0.0
                     for index in range(len(self.grammar[current_sym[0]])):
-                        prob_aux += self.get_probability(probs, nt_index, index, current_depth)
+                        prob_aux += self.get_probability(
+                            probs, nt_index, index, current_depth, context
+                        )
                         if codon <= round(prob_aux,3):
                             expansion_possibility = index
                             break
                 # update mapping rules com a updated expansion possibility
                 # print(mapping_rules[current_sym_pos])
                 mapping_rules[current_sym_pos][positions_to_map[current_sym_pos]] = [expansion_possibility, codon, current_depth]
-            gram_counter = self.update_grammar_counter(gram_counter, current_sym_pos, expansion_possibility, current_depth)
+            gram_counter = self.update_grammar_counter(
+                gram_counter, current_sym_pos, expansion_possibility,
+                current_depth, context
+            )
+
+            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+                previous_expansions[nt_index] = expansion_possibility
 
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices_expand[current_production]
             for next_sym in next_to_expand:
                 depths.append(
-                    self._recursive_mapping(probs, mapping_rules, positions_to_map, gram_counter, next_sym, current_depth + 1, output))
+                    self._recursive_mapping(
+                        probs, mapping_rules, positions_to_map, gram_counter,
+                        next_sym, current_depth + 1, output,
+                        current_sym[0], previous_expansions
+                    ))
         return max(depths)
 
     def _recursive_mapping_hybrid_not_aware(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):
@@ -590,6 +704,54 @@ class Grammar:
         return self.pcfg
 
     def set_pcfg(self, pcfg):
+        if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            if not isinstance(pcfg, list) or len(pcfg) != len(self.grammar):
+                raise ValueError("Context grammar probability table has invalid size")
+            restored = copy.deepcopy(pcfg)
+
+            def convert_vectors(value, expected_size):
+                if isinstance(value, dict):
+                    return {key: convert_vectors(item, expected_size)
+                            for key, item in value.items()}
+                array = np.asarray(value, dtype=float)
+                if (array.ndim != 1 or len(array) != expected_size or
+                        not np.all(np.isfinite(array))):
+                    raise ValueError("Invalid context probability vector")
+                total = np.sum(array)
+                if np.any(array < 0) or total <= 0:
+                    raise ValueError("Invalid context probability vector")
+                return array / total
+
+            converted = [
+                convert_vectors(
+                    table,
+                    len(self.grammar[list(self.get_non_terminals())[nt_index]]),
+                )
+                for nt_index, table in enumerate(restored)
+            ]
+            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+                converted = [
+                    {
+                        parent: {
+                            int(depth): probabilities
+                            for depth, probabilities in depth_table.items()
+                        }
+                        for parent, depth_table in table.items()
+                    }
+                    for table in converted
+                ]
+            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+                converted = [
+                    {
+                        (key if key == self.PREVIOUS_START_CONTEXT else int(key)):
+                        probabilities
+                        for key, probabilities in table.items()
+                    }
+                    for table in converted
+                ]
+            self.pcfg = converted
+            self.pcfg_mask = None
+            return
         restored = np.array(pcfg, copy=True)
         if self.pcfg is not None and restored.shape != np.asarray(self.pcfg).shape:
             raise ValueError(
@@ -675,11 +837,11 @@ class Grammar:
         We use {: and :} as special open and close brackets, because
         it's not possible to specify indentation correctly in a BNF
         grammar without this type of scheme."""
-        txt = txt.replace("\le", "<=")
-        txt = txt.replace("\ge", ">=")
-        txt = txt.replace("\l", "<")
-        txt = txt.replace("\g", ">")
-        txt = txt.replace("\eb", "|")
+        txt = txt.replace(r"\le", "<=")
+        txt = txt.replace(r"\ge", ">=")
+        txt = txt.replace(r"\l", "<")
+        txt = txt.replace(r"\g", ">")
+        txt = txt.replace(r"\eb", "|")
         if needs_python_filter:
             indent_level = 0
             tmp = txt[:]
@@ -741,6 +903,7 @@ get_pcfg = _inst.get_pcfg
 set_pcfg = _inst.set_pcfg
 get_probability = _inst.get_probability
 get_probabilities_non_terminal = _inst.get_probabilities_non_terminal
+get_context_probabilities = _inst.get_context_probabilities
 get_mask = _inst.get_mask
 get_shortest_path = _inst.get_shortest_path
 get_index_of_non_terminal = _inst.get_index_of_non_terminal

@@ -18,16 +18,23 @@ class NumpyEncoder(json.JSONEncoder):
 
 def _log_folder():
     return params.get('LOG_FOLDER', params['RUN_FOLDER'])
-    
+
+
+def _phenotype_key(phenotype):
+    return (phenotype,) if isinstance(phenotype, str) else tuple(phenotype)
+
+
 def calculate_unique_percentage(population_phenotypes, previous_population=None):
-    population_phenotypes = [tuple(phenotype) for phenotype in population_phenotypes]
+    population_phenotypes = [_phenotype_key(phenotype)
+                             for phenotype in population_phenotypes]
     unique_phenotypes = set(population_phenotypes)
     unique_count = len(unique_phenotypes)
     total_count = len(population_phenotypes)
     unique_percentage = (unique_count / total_count) * 100 if total_count > 0 else 0
 
     if previous_population is not None:
-        previous_phenotypes = set(tuple(ind['phenotype']) for ind in previous_population)
+        previous_phenotypes = set(_phenotype_key(ind['phenotype'])
+                                  for ind in previous_population)
         new_count = sum(1 for p in population_phenotypes if p not in previous_phenotypes)
         percentage_new_individuals = (new_count / total_count) * 100 if total_count > 0 else 0
         return unique_percentage, percentage_new_individuals
@@ -37,6 +44,8 @@ def calculate_unique_percentage(population_phenotypes, previous_population=None)
 
 def levenshtein_distances(tokens, previous_tokens):
     """Return raw and max-length-normalized Levenshtein token distance."""
+    tokens = list(_phenotype_key(tokens))
+    previous_tokens = list(_phenotype_key(previous_tokens))
     previous_row = list(range(len(previous_tokens) + 1))
     for row_index, token in enumerate(tokens, start=1):
         current_row = [row_index]

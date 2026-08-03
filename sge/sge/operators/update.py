@@ -18,6 +18,13 @@ def update_distributions(learning_strategy, population, lf, n_best):
     elif learning_strategy == LearningStrategy.DEPTH_BASED:
         print("DEPTH_BASED UPDATE")
         depth_based_update(population, lf, n_best)
+    elif learning_strategy in {
+        LearningStrategy.CONTEXT_AWARE,
+        LearningStrategy.CONTEXT_AWARE_DEPTH,
+        LearningStrategy.CONTEXT_AWARE_PREVIOUS,
+    }:
+        print("CONTEXT_AWARE UPDATE")
+        context_aware_update(learning_strategy, population, lf, n_best)
     
 '''
     INDEPENDENT UPDATE
@@ -156,6 +163,78 @@ def depth_based_update(population, lf, n_best):
     2. For each production rule, if it was used, increase or decrease its probability, but only for the depth level and parent non-terminal where it was used.
 '''
 
+def _iter_context_counts(strategy, nt_counter):
+    if strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
+        for parent, depth_table in nt_counter.items():
+            for depth, counts in depth_table.items():
+                yield (parent, depth), counts
+    else:
+        yield from nt_counter.items()
+
+
+def get_context_counter(strategy, individuals):
+    """Aggregate sparse context counters over all selected individuals."""
+    aggregated = [{} for _ in grammar.get_non_terminals()]
+    for individual in individuals:
+        for nt_index, nt_counter in enumerate(individual['grammar_counter']):
+            for context, counts in _iter_context_counts(strategy, nt_counter):
+                if context not in aggregated[nt_index]:
+                    aggregated[nt_index][context] = [0] * len(counts)
+                if len(aggregated[nt_index][context]) != len(counts):
+                    raise ValueError(
+                        "Context counter length mismatch for non-terminal %d"
+                        % nt_index
+                    )
+                aggregated[nt_index][context] = [
+                    total + int(count)
+                    for total, count in zip(
+                        aggregated[nt_index][context], counts
+                    )
+                ]
+    return aggregated
+
+
+def context_aware_update(strategy, population, lf, n_best):
+    """Update every observed sparse context from the top ``n_best`` elites."""
+    selected = population[:min(n_best, len(population))]
+    counter = get_context_counter(strategy, selected)
+    gram = grammar.get_pcfg()
+
+    for nt_index, context_table in enumerate(counter):
+        for context, counts in context_table.items():
+            total_count = sum(counts)
+            if total_count <= 0 or len(counts) <= 1:
+                continue
+            probabilities = grammar.get_context_probabilities(
+                gram, nt_index, context
+            )
+            if len(probabilities) != len(counts):
+                raise ValueError(
+                    "Context counter length does not match grammar at "
+                    "non-terminal %d" % nt_index
+                )
+            updated = np.array(probabilities, dtype=float, copy=True)
+            for production_index, count in enumerate(counts):
+                if count > 0:
+                    updated[production_index] = min(
+                        updated[production_index] + lf * count / total_count,
+                        1.0,
+                    )
+                else:
+                    updated[production_index] = max(
+                        updated[production_index]
+                        - lf * updated[production_index],
+                        0.0,
+                    )
+            updated = np.clip(updated, 0, np.inf)
+            total = np.sum(updated)
+            if not np.isfinite(total) or total <= 0:
+                raise ValueError(
+                    "Cannot normalize context probabilities for non-terminal %d"
+                    % nt_index
+                )
+            probabilities[:] = updated / total
+
 
 '''
     PROBABILITIES MUTATION
@@ -185,25 +264,29 @@ def depth_based_update(population, lf, n_best):
 def grammar_mutation(ind, prob_mutation, gauss_std):
     ind['fitness'] = None
     gram = ind['pcfg']
-    rows, columns = gram.shape
+    rows, _ = gram.shape
     mask = copy.deepcopy(grammar.get_mask())
     for i in range(rows):
-        if np.count_nonzero(mask[i,:]) <= 1:
+        valid_indices = np.flatnonzero(mask[i, :])
+        if len(valid_indices) <= 1:
             continue
 
-        for j in range(columns):
-            if not mask[i,j]:
-                continue
+        for j in valid_indices:
             if np.random.uniform() < prob_mutation:
                 gauss = np.random.normal(0.0, gauss_std)
-                diff = (gauss / (columns - 1))
-                gram[i][j] += (gauss + diff)
-                gram[i] -= diff
-                gram[i] = np.clip(gram[i], 0, np.inf)
-                gram[i] /= np.sum(np.clip(gram[i], 0, np.inf))
+                other_indices = valid_indices[valid_indices != j]
+                gram[i, j] += gauss
+                gram[i, other_indices] -= gauss / len(other_indices)
                 break
 
-        masked_indices = mask[i,:]
-        gram[i, masked_indices] = np.clip(gram[i, masked_indices], 0, np.inf)
-        gram[i, masked_indices] /= np.sum(gram[i, masked_indices])
+        valid_probabilities = np.clip(gram[i, valid_indices], 0, np.inf)
+        total = np.sum(valid_probabilities)
+        if total <= 0 or not np.isfinite(total):
+            valid_probabilities = np.full(
+                len(valid_indices), 1.0 / len(valid_indices)
+            )
+        else:
+            valid_probabilities /= total
+        gram[i, valid_indices] = valid_probabilities
+        gram[i, ~mask[i, :]] = 0.0
     return ind
