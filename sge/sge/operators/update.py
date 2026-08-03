@@ -9,10 +9,10 @@ from sge.parameters import LearningStrategy
 
 def update_distributions(learning_strategy, population, lf, n_best):
     if learning_strategy == LearningStrategy.INDEPENDENT:
-        print("PSGE")
+        print("PSGE UPDATE")
         independent_update(population, lf, n_best)
     elif learning_strategy == LearningStrategy.DEPTH_BASED:
-        print("DEPTH")
+        print("DEPTH_BASED UPDATE")
         depth_based_update(population, lf, n_best)
     
 '''
@@ -60,11 +60,29 @@ def independent_update(individuals, lf, n_best):
 '''
 
 def get_counter_individual_expansions(individuals):
-    # print(individuals[0]['grammar_counter'])
-    # input()
+    """Aggregate depth-based production counts across several individuals.
+
+    An individual only records depths at which it expanded a given
+    non-terminal.  Consequently, different individuals need not have the same
+    depth keys.  Missing entries represent zero uses, rather than an error.
+    """
     counters = [ind['grammar_counter'] for ind in individuals]
-    return [{k: list(map(int, np.sum([c[i][k] for c in counters], axis=0))) for k in counters[0][i].keys()} 
-            for i in range(len(grammar.get_non_terminals()))]
+    aggregated = []
+
+    for nt_i in range(len(grammar.get_non_terminals())):
+        depths = set()
+        for counter in counters:
+            depths.update(counter[nt_i].keys())
+
+        depth_counts = {}
+        for depth in depths:
+            observed = [counter[nt_i][depth]
+                        for counter in counters
+                        if depth in counter[nt_i]]
+            depth_counts[depth] = list(map(int, np.sum(observed, axis=0)))
+        aggregated.append(depth_counts)
+
+    return aggregated
 
 
 
@@ -142,23 +160,23 @@ def depth_based_update(population, lf, n_best):
     2. Normalize the probabilities of the production rules for each non-terminal 
 '''
 
-def grammar_mutation(ind, prob_mutation, gauss_std):
-    print("COPSGE")
-    ind['fitness'] = None
-    for idx_nt, nt_values in enumerate(ind['pcfg']):
-        if len(nt_values)  <= 1:
-            continue
-        for prob_idx in range(len(nt_values)):
-            if np.random.uniform() < prob_mutation:
-                gauss = np.random.normal(0.0, gauss_std)
-                diff = (gauss / (len(nt_values) - 1))
-                nt_values[prob_idx] += (gauss + diff)
-                nt_values -= diff
-                nt_values = np.clip(nt_values, 0, np.inf)
-                nt_values /= np.sum(np.clip(nt_values, 0, np.inf))
-                ind['pcfg'][idx_nt] = nt_values
-                break
-    return ind
+# def grammar_mutation(ind, prob_mutation, gauss_std):
+#     print("COPSGE UPDATE")
+#     ind['fitness'] = None
+#     for idx_nt, nt_values in enumerate(ind['pcfg']):
+#         if len(nt_values)  <= 1:
+#             continue
+#         for prob_idx in range(len(nt_values)):
+#             if np.random.uniform() < prob_mutation:
+#                 gauss = np.random.normal(0.0, gauss_std)
+#                 diff = (gauss / (len(nt_values) - 1))
+#                 nt_values[prob_idx] += (gauss + diff)
+#                 nt_values -= diff
+#                 nt_values = np.clip(nt_values, 0, np.inf)
+#                 nt_values /= np.sum(np.clip(nt_values, 0, np.inf))
+#                 ind['pcfg'][idx_nt] = nt_values
+#                 break
+#     return ind
 
 def grammar_mutation(ind, prob_mutation, gauss_std):
     ind['fitness'] = None
