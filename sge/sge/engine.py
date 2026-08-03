@@ -122,7 +122,7 @@ def _initialize_grammar_and_distribution():
         _genotype_distribution = None
 
 
-def _restore_checkpoint(resume_from):
+def _restore_checkpoint(resume_from, generations_override=None):
     global _genotype_distribution
 
     restored, checkpoint_file = checkpoint.load_checkpoint(resume_from)
@@ -140,6 +140,16 @@ def _restore_checkpoint(resume_from):
         raise checkpoint.CheckpointError(
             'Checkpoint parameter fingerprint does not match its saved parameters'
         )
+
+    if generations_override is not None:
+        generations_override = int(generations_override)
+        saved_generations = int(params['GENERATIONS'])
+        if generations_override < saved_generations:
+            raise checkpoint.CheckpointError(
+                'A resumed run cannot reduce GENERATIONS from %d to %d'
+                % (saved_generations, generations_override)
+            )
+        params['GENERATIONS'] = generations_override
 
     parameters_path = params.get('PARAMETERS')
     saved_parameters_hash = restored.get('parameters_file_sha256')
@@ -195,15 +205,22 @@ def _restore_checkpoint(resume_from):
     return restored
 
 
-def setup(parameters_file_path=None, resume_from=None):
+def setup(parameters_file_path=None, resume_from=None,
+          generations_override=None):
     if parameters_file_path is not None:
         load_parameters(file_name=parameters_file_path)
         params['PARAMETERS'] = parameters_file_path
     set_parameters(sys.argv[1:])
+    if generations_override is None and any(
+            argument == '--generations' or argument.startswith('--generations=')
+            for argument in sys.argv[1:]):
+        generations_override = params['GENERATIONS']
     if resume_from is not None:
         params['RESUME_FROM'] = resume_from
     if params.get('RESUME_FROM'):
-        return _restore_checkpoint(params['RESUME_FROM'])
+        return _restore_checkpoint(
+            params['RESUME_FROM'], generations_override
+        )
 
     if params['SEED'] is None:
         params['SEED'] = int(datetime.now().microsecond)
@@ -244,8 +261,12 @@ def _checkpoint_state(completed_generation, next_generation, population,
 
 
 def evolutionary_algorithm(evaluation_function=None, parameters_file=None,
-                           resume_from=None):
-    restored = setup(parameters_file_path=parameters_file, resume_from=resume_from)
+                           resume_from=None, generations=None):
+    restored = setup(
+        parameters_file_path=parameters_file,
+        resume_from=resume_from,
+        generations_override=generations,
+    )
     if restored is None:
         population = list(make_initial_population(params['POPSIZE']))
         flag = False    # alternate False - best overall
@@ -289,7 +310,6 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None,
         logger.evolution_progress(it, population, best, best_gen, grammar.get_pcfg(),previous_population)
 
         if has_zero_fitness(population):
-            checkpoint.cleanup_checkpoints(params['RUN_FOLDER'])
             return best
         
         # Update genotype distributions based on elite individuals
@@ -368,13 +388,14 @@ def evolutionary_algorithm(evaluation_function=None, parameters_file=None,
             keep=2,
         )
 
-    checkpoint.cleanup_checkpoints(params['RUN_FOLDER'])
     return best
 
 
-def resume_evolutionary_algorithm(evaluation_function, resume_from):
+def resume_evolutionary_algorithm(evaluation_function, resume_from,
+                                  generations=None):
     """Resume an experiment from a run folder or a specific checkpoint file."""
     return evolutionary_algorithm(
         evaluation_function=evaluation_function,
         resume_from=resume_from,
+        generations=generations,
     )
