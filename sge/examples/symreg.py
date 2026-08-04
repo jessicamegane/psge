@@ -46,6 +46,9 @@ class SymbolicRegression():
         def kozapolynomial(inp):
             return pow(inp,6) - (2 * pow(inp,4)) + pow(inp,2)
 
+        def nguyen5polynomial(inp):
+            return sin(inp**2) * cos(inp) - 1
+
         def pagiepolynomial(inp1,inp2):
             return 1.0 / (1 + pow(inp1,-4.0)) + 1.0 / (1 + pow(inp2,-4))
 
@@ -118,7 +121,7 @@ class SymbolicRegression():
             try:
                 result = eval(individual, globals(), {"x": fit_case[:-1]})
                 pred_error += (case_output - result)**2
-            except (OverflowError, ValueError) as e:
+            except (IndexError, OverflowError, ValueError):
                 return self.__invalid_fitness
         return pred_error
 
@@ -144,5 +147,8 @@ class SymbolicRegression():
 
 if __name__ == "__main__":
     import sge
-    eval_func = SymbolicRegression()
+    import sys
+    function = sys.argv[1] if len(sys.argv) > 1 else "pagiepolynomial"
+    print("Running symbolic regression for function: %s" % function)
+    eval_func = SymbolicRegression(function=function)
     sge.evolutionary_algorithm(evaluation_function=eval_func, parameters_file="parameters/standard.yml")
