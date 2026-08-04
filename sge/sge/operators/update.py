@@ -18,6 +18,9 @@ def update_distributions(learning_strategy, population, lf, n_best):
     elif learning_strategy == LearningStrategy.DEPTH_BASED:
         print("DEPTH_BASED UPDATE")
         depth_based_update(population, lf, n_best)
+    elif learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
+        print("SUBTREE_DEPENDENT UPDATE")
+        subtree_dependent_update(population, lf, n_best)
     elif learning_strategy in {
         LearningStrategy.CONTEXT_AWARE,
         LearningStrategy.CONTEXT_AWARE_DEPTH,
@@ -192,6 +195,44 @@ def get_context_counter(strategy, individuals):
                     )
                 ]
     return aggregated
+
+
+def subtree_dependent_update(population, lf, n_best):
+    """Update probability vectors keyed by repeated subtree contexts.
+
+    This preserves the conditional-hash implementation's update rule: a
+    context/production pair must occur more than once among the selected best
+    individuals, and its probability is increased by ``count * lf`` before
+    the vector is normalized. Unobserved productions are not penalized.
+    """
+    selected = population[:min(n_best, len(population))]
+    counter = get_context_counter(
+        LearningStrategy.SUBTREE_DEPENDENT, selected
+    )
+    gram = grammar.get_pcfg()
+
+    for nt_index, context_table in enumerate(counter):
+        for context, counts in context_table.items():
+            probabilities = grammar.get_context_probabilities(
+                gram, nt_index, context
+            )
+            if len(probabilities) != len(counts):
+                raise ValueError(
+                    "Subtree counter length does not match grammar at "
+                    "non-terminal %d" % nt_index
+                )
+            for production_index, count in enumerate(counts):
+                if count <= 1:
+                    continue
+                probabilities[production_index] += count * lf
+                probabilities[:] = np.clip(probabilities, 0, np.inf)
+                total = np.sum(probabilities)
+                if not np.isfinite(total) or total <= 0:
+                    raise ValueError(
+                        "Cannot normalize subtree probabilities for "
+                        "non-terminal %d" % nt_index
+                    )
+                probabilities[:] /= total
 
 
 def context_aware_update(strategy, population, lf, n_best):

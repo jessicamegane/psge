@@ -5,6 +5,56 @@ import json
 import numpy as np
 from sge.parameters import LearningStrategy, AlgorithmMethod
 
+
+class Node:
+    """A partially expanded derivation-tree node used for subtree contexts."""
+
+    def __init__(self, symbol, index=None, parent=None):
+        self.symbol = symbol
+        self.index_children = index
+        self.parent = parent
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+    def children_index(self, index):
+        self.index_children = index
+
+    def extract_subtree_hash(self, levels_up=1, levels_down=3):
+        current_node = self
+        for _ in range(levels_up):
+            if current_node.parent is None:
+                break
+            current_node = current_node.parent
+        subtree = current_node.build_subtree(
+            max_depth=levels_down, skip_node=self
+        )
+        return None if subtree is None else subtree.convert_to_hash()
+
+    def build_subtree(self, current_depth=0, max_depth=None, skip_node=None):
+        if max_depth is not None and current_depth >= max_depth:
+            return None
+        if self is skip_node:
+            return None
+
+        new_tree = Node(self.symbol, self.index_children)
+        for child in self.children:
+            subtree = child.build_subtree(
+                current_depth + 1, max_depth, skip_node
+            )
+            if subtree is not None:
+                subtree.parent = new_tree
+                new_tree.children.append(subtree)
+        return new_tree
+
+    def convert_to_hash(self, depth=0):
+        subtree_hash = str(depth) + "_" + self.symbol[0] + "_"
+        for child in self.children:
+            subtree_hash += child.convert_to_hash(depth + 1)
+        return subtree_hash
+
+
 class Grammar:
     """Class that represents a grammar. It works with the prefix notation."""
     NT = "NT"
@@ -15,6 +65,7 @@ class Grammar:
     ROOT_CONTEXT = "__ROOT__"
     PREVIOUS_START_CONTEXT = "__START__"
     CONTEXT_STRATEGIES = {
+        LearningStrategy.SUBTREE_DEPENDENT,
         LearningStrategy.CONTEXT_AWARE,
         LearningStrategy.CONTEXT_AWARE_DEPTH,
         LearningStrategy.CONTEXT_AWARE_PREVIOUS,
@@ -37,6 +88,8 @@ class Grammar:
         self.pcfg_path = None
         self.index_of_non_terminal = {}
         self.shortest_path = {}
+        self.levels_up = 1
+        self.levels_down = 3
 
     def set_path(self, grammar_path):
         self.grammar_file = grammar_path
@@ -56,7 +109,8 @@ class Grammar:
     def get_max_init_depth(self):
         return self.max_init_depth
 
-    def read_grammar(self, learning_strategy=None, algorithm_method=None):
+    def read_grammar(self, learning_strategy=None, algorithm_method=None,
+                     levels_up=1, levels_down=3):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -102,6 +156,12 @@ class Grammar:
         
         self.learning_strategy = LearningStrategy.from_string(learning_strategy) if learning_strategy is not None else None
         self.algorithm_method = AlgorithmMethod.from_string(algorithm_method) if algorithm_method is not None else None
+        if levels_up < 0:
+            raise ValueError("levels_up must be zero or greater")
+        if levels_down <= 0:
+            raise ValueError("levels_down must be greater than zero")
+        self.levels_up = levels_up
+        self.levels_down = levels_down
         if (self.learning_strategy in self.CONTEXT_STRATEGIES and
                 self.algorithm_method in {AlgorithmMethod.COPSGE,
                                           AlgorithmMethod.PSGE_COPSGE}):
@@ -236,6 +296,8 @@ class Grammar:
         return np.full(count, 1.0 / count)
 
     def _default_context(self, current_depth=None):
+        if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
+            return self.ROOT_CONTEXT
         if self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
             return self.ROOT_CONTEXT
         if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
@@ -336,6 +398,9 @@ class Grammar:
     def update_grammar_counter(self, grammar_counter, symbol,
                                expansion_possibility, depth, context=None):
         if self.learning_strategy in self.CONTEXT_STRATEGIES:
+            if (self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT and
+                    context is None):
+                return grammar_counter
             nt = list(self.get_non_terminals())[symbol]
             number_productions = len(self.grammar[nt])
             if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
@@ -440,10 +505,13 @@ class Grammar:
         gram_counter = self.generate_empty_grammar_counter()
         previous_expansions = [self.PREVIOUS_START_CONTEXT
                                for _ in self.ordered_non_terminals]
+        tree = (Node(self.start_rule)
+                if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT
+                else None)
         output = []
         max_depth = self._recursive_mapping(
             probs, mapping_rules, positions_to_map, gram_counter,
-            self.start_rule, 0, output, None, previous_expansions
+            self.start_rule, 0, output, None, previous_expansions, tree
         )
         if self.grammar_file.endswith("pybnf"):
             if needs_python_filter:
@@ -456,7 +524,8 @@ class Grammar:
 
     def _recursive_mapping(self, probs, mapping_rules, positions_to_map,
                            gram_counter, current_sym, current_depth, output,
-                           parent_symbol=None, previous_expansions=None):
+                           parent_symbol=None, previous_expansions=None,
+                           tree_node=None):
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -465,7 +534,11 @@ class Grammar:
             choices_expand = self.grammar[current_sym[0]]
             shortest_path = self.shortest_path[current_sym]
             nt_index = self.index_of_non_terminal[current_sym[0]]
-            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
+            if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
+                context = tree_node.extract_subtree_hash(
+                    self.levels_up, self.levels_down
+                )
+            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
                 context = parent_symbol or self.ROOT_CONTEXT
             elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
                 context = (parent_symbol or self.ROOT_CONTEXT, current_depth)
@@ -551,13 +624,29 @@ class Grammar:
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices_expand[current_production]
-            for next_sym in next_to_expand:
-                depths.append(
-                    self._recursive_mapping(
-                        probs, mapping_rules, positions_to_map, gram_counter,
-                        next_sym, current_depth + 1, output,
-                        current_sym[0], previous_expansions
-                    ))
+            if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
+                tree_node.children_index(current_production)
+                child_nodes = [
+                    Node(next_sym, parent=tree_node)
+                    for next_sym in next_to_expand
+                ]
+                for child in child_nodes:
+                    tree_node.add_child(child)
+                for child in child_nodes:
+                    depths.append(
+                        self._recursive_mapping(
+                            probs, mapping_rules, positions_to_map,
+                            gram_counter, child.symbol, current_depth + 1,
+                            output, current_sym[0], previous_expansions, child
+                        ))
+            else:
+                for next_sym in next_to_expand:
+                    depths.append(
+                        self._recursive_mapping(
+                            probs, mapping_rules, positions_to_map,
+                            gram_counter, next_sym, current_depth + 1, output,
+                            current_sym[0], previous_expansions
+                        ))
         return max(depths)
 
     def _recursive_mapping_hybrid_not_aware(self, probs, mapping_rules, positions_to_map, gram_counter, current_sym, current_depth, output):

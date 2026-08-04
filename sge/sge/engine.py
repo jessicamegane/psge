@@ -106,7 +106,12 @@ def _initialize_grammar_and_distribution():
     grammar.set_path(params['GRAMMAR'])
     grammar.set_max_tree_depth(params['MAX_TREE_DEPTH'])
     grammar.set_min_init_tree_depth(params['MIN_TREE_DEPTH'])
-    grammar.read_grammar(params['LEARNING_STRATEGY'], params['ALGORITHM_METHOD'])
+    grammar.read_grammar(
+        params['LEARNING_STRATEGY'],
+        params['ALGORITHM_METHOD'],
+        params.get('LEVELS_UP', 1),
+        params.get('LEVELS_DOWN', 3),
+    )
     
     if params['GENOTYPE_DISTRIBUTION'] == GenotypeDistribution.CMA_ES:
         print("Initializing CMA-ES-inspired genotype distribution")

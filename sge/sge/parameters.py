@@ -11,6 +11,7 @@ Fenton, M., McDermott, J., Fagan, D., Forstenlechner, S., Hemberg, E., and O'Nei
 class LearningStrategy(Enum):
     INDEPENDENT = 'independent'
     DEPTH_BASED = 'depth_based'
+    SUBTREE_DEPENDENT = 'subtree_dependent'
     CONTEXT_AWARE = 'context_aware'
     CONTEXT_AWARE_DEPTH = 'context_aware_depth'
     CONTEXT_AWARE_PREVIOUS = 'context_aware_previous'
@@ -22,8 +23,14 @@ class LearningStrategy(Enum):
             return value
         if value is None:
             return None
+        aliases = {
+            'standard': cls.INDEPENDENT.value,
+            'dependent': cls.DEPTH_BASED.value,
+        }
+        value = value.lower()
+        value = aliases.get(value, value)
         try:
-            return cls(value.lower())
+            return cls(value)
         except ValueError as exc:
             valid = ', '.join([item.value for item in cls])
             raise ValueError(f"Invalid learning strategy: {value}. Valid options are: {valid}") from exc
@@ -108,6 +115,8 @@ params = {'PARAMETERS': None,
           'GAUSS_SD': 0.01,
           'GRAMMAR_PROBS': None,
           'N_BEST': 1,
+          'LEVELS_UP': 1,
+          'LEVELS_DOWN': 3,
           'SEARCH_STRATEGY': SearchStrategy.STANDARD,
           'LEARNING_STRATEGY': LearningStrategy.INDEPENDENT,
           'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
@@ -124,6 +133,11 @@ def load_parameters(file_name=None):
     with open(file_name, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
     params.update(cfg)
+    if 'PROBS_UPDATE' in cfg and 'LEARNING_STRATEGY' not in cfg:
+        params['LEARNING_STRATEGY'] = LearningStrategy.from_string(
+            cfg['PROBS_UPDATE']
+        )
+    params.pop('PROBS_UPDATE', None)
     if 'LEARNING_STRATEGY' in params:
         params['LEARNING_STRATEGY'] = LearningStrategy.from_string(params['LEARNING_STRATEGY'])
     if 'SEARCH_STRATEGY' in params:
@@ -228,8 +242,13 @@ def set_parameters(arguments):
                         dest='LEARNING_STRATEGY',
                         type=parse_learning_strategy,
                         help=('Learning strategy: independent, depth_based, '
-                              'context_aware, context_aware_depth, '
-                              'context_aware_previous, or none.'))
+                              'subtree_dependent, context_aware, '
+                              'context_aware_depth, context_aware_previous, '
+                              'or none.'))
+    parser.add_argument('--probs_update',
+                        dest='LEARNING_STRATEGY',
+                        type=parse_learning_strategy,
+                        help=argparse.SUPPRESS)
     parser.add_argument('--search_strategy',
                         dest='SEARCH_STRATEGY',
                         type=parse_search_strategy,
@@ -250,6 +269,17 @@ def set_parameters(arguments):
                         dest='N_BEST',
                         type=int,
                         help='Specifies the number of individuals to consider in the update of probabilities.')
+    parser.add_argument('--levels_up',
+                        dest='LEVELS_UP',
+                        type=int,
+                        help=('Number of ancestors above an expanded node at '
+                              'which to root its subtree context. Only used by '
+                              'the subtree_dependent learning strategy.'))
+    parser.add_argument('--levels_down',
+                        dest='LEVELS_DOWN',
+                        type=int,
+                        help=('Maximum depth of the subtree context. Only used '
+                              'by the subtree_dependent learning strategy.'))
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
                         type=strtobool,
