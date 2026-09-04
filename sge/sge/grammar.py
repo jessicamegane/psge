@@ -307,7 +307,7 @@ class Grammar:
         return None
 
     def get_context_probabilities(self, grammar, nt_index, context=None,
-                                  create=True):
+                                  create=False):
         """Get a sparse context distribution, initializing it uniformly."""
         if grammar is None:
             grammar = self.pcfg
