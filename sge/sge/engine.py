@@ -111,6 +111,7 @@ def _initialize_grammar_and_distribution():
         params['ALGORITHM_METHOD'],
         params.get('LEVELS_UP', 1),
         params.get('LEVELS_DOWN', 3),
+        params.get('CONTEXT_WINDOW', 1),
     )
     
     if params['GENOTYPE_DISTRIBUTION'] == GenotypeDistribution.CMA_ES:

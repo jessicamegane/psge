@@ -14,7 +14,8 @@ class LearningStrategy(Enum):
     SUBTREE_DEPENDENT = 'subtree_dependent'
     CONTEXT_AWARE = 'context_aware'
     CONTEXT_AWARE_DEPTH = 'context_aware_depth'
-    CONTEXT_AWARE_PREVIOUS = 'context_aware_previous'
+    PREVIOUS_RULE = 'previous_rule'
+    PREVIOUS_RULE_DEPTH = 'previous_rule_depth'
     NONE = 'none'
 
     @classmethod
@@ -117,6 +118,7 @@ params = {'PARAMETERS': None,
           'N_BEST': 1,
           'LEVELS_UP': 1,
           'LEVELS_DOWN': 3,
+          'CONTEXT_WINDOW': 1,
           'SEARCH_STRATEGY': SearchStrategy.STANDARD,
           'LEARNING_STRATEGY': LearningStrategy.INDEPENDENT,
           'GENOTYPE_INIT': 'dynamic',  # 'FIXED' or 'DYNAMIC'
@@ -243,7 +245,8 @@ def set_parameters(arguments):
                         type=parse_learning_strategy,
                         help=('Learning strategy: independent, depth_based, '
                               'subtree_dependent, context_aware, '
-                              'context_aware_depth, context_aware_previous, '
+                              'context_aware_depth, previous_rule, '
+                              'previous_rule_depth, '
                               'or none.'))
     parser.add_argument('--probs_update',
                         dest='LEARNING_STRATEGY',
@@ -280,6 +283,12 @@ def set_parameters(arguments):
                         type=int,
                         help=('Maximum depth of the subtree context. Only used '
                               'by the subtree_dependent learning strategy.'))
+    parser.add_argument('--context_window',
+                        dest='CONTEXT_WINDOW',
+                        type=int,
+                        help=('Number of ancestor productions used as context. '
+                              'Only used by context_aware and '
+                              'context_aware_depth.'))
     parser.add_argument('--adaptive_lf',
                         dest='ADAPTIVE_LF',
                         type=strtobool,

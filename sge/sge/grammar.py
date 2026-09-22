@@ -63,12 +63,14 @@ class Grammar:
     RULE_SEPARATOR = "::="
     PRODUCTION_SEPARATOR = "|"
     ROOT_CONTEXT = "__ROOT__"
+    ROOT_HISTORY_CONTEXT = "R"
     PREVIOUS_START_CONTEXT = "__START__"
     CONTEXT_STRATEGIES = {
         LearningStrategy.SUBTREE_DEPENDENT,
         LearningStrategy.CONTEXT_AWARE,
         LearningStrategy.CONTEXT_AWARE_DEPTH,
-        LearningStrategy.CONTEXT_AWARE_PREVIOUS,
+        LearningStrategy.PREVIOUS_RULE,
+        LearningStrategy.PREVIOUS_RULE_DEPTH,
     }
 
     def __init__(self):
@@ -90,6 +92,7 @@ class Grammar:
         self.shortest_path = {}
         self.levels_up = 1
         self.levels_down = 3
+        self.context_window = 1
 
     def set_path(self, grammar_path):
         self.grammar_file = grammar_path
@@ -110,7 +113,7 @@ class Grammar:
         return self.max_init_depth
 
     def read_grammar(self, learning_strategy=None, algorithm_method=None,
-                     levels_up=1, levels_down=3):
+                     levels_up=1, levels_down=3, context_window=1):
         """
         Reads a Grammar in the BNF format and converts it to a python dictionary
         This method was adapted from PonyGE version 0.1.3 by Erik Hemberg and James McDermott
@@ -160,8 +163,11 @@ class Grammar:
             raise ValueError("levels_up must be zero or greater")
         if levels_down <= 0:
             raise ValueError("levels_down must be greater than zero")
+        if context_window <= 0:
+            raise ValueError("context_window must be greater than zero")
         self.levels_up = levels_up
         self.levels_down = levels_down
+        self.context_window = context_window
         if (self.learning_strategy in self.CONTEXT_STRATEGIES and
                 self.algorithm_method in {AlgorithmMethod.COPSGE,
                                           AlgorithmMethod.PSGE_COPSGE}):
@@ -295,15 +301,31 @@ class Grammar:
         count = len(self.grammar[nt])
         return np.full(count, 1.0 / count)
 
+    def _production_context_key(self, nt_index, production_index):
+        return "%d:%d" % (nt_index, production_index)
+
+    def _context_history_key(self, production_history):
+        padded_history = (
+            [self.ROOT_HISTORY_CONTEXT] * self.context_window
+            + list(production_history)
+        )[-self.context_window:]
+        return "|".join(padded_history)
+
     def _default_context(self, current_depth=None):
         if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
             return self.ROOT_CONTEXT
         if self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
-            return self.ROOT_CONTEXT
+            return self._context_history_key([])
         if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
-            return (self.ROOT_CONTEXT, 0 if current_depth is None else current_depth)
-        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+            return (
+                self._context_history_key([]),
+                0 if current_depth is None else current_depth,
+            )
+        if self.learning_strategy == LearningStrategy.PREVIOUS_RULE:
             return self.PREVIOUS_START_CONTEXT
+        if self.learning_strategy == LearningStrategy.PREVIOUS_RULE_DEPTH:
+            return (self.PREVIOUS_START_CONTEXT,
+                    0 if current_depth is None else current_depth)
         return None
 
     def get_context_probabilities(self, grammar, nt_index, context=None,
@@ -314,16 +336,22 @@ class Grammar:
         if context is None:
             context = self._default_context()
         table = grammar[nt_index]
-        if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
-            parent, depth = context
-            parent_table = table.setdefault(parent, {}) if create else table.get(parent)
-            if parent_table is None:
+        if self.learning_strategy in {
+            LearningStrategy.CONTEXT_AWARE_DEPTH,
+            LearningStrategy.PREVIOUS_RULE_DEPTH,
+        }:
+            context_key, depth = context
+            context_table = (
+                table.setdefault(context_key, {}) if create
+                else table.get(context_key)
+            )
+            if context_table is None:
                 return self._uniform_probabilities(nt_index)
-            if depth not in parent_table:
+            if depth not in context_table:
                 if not create:
                     return self._uniform_probabilities(nt_index)
-                parent_table[depth] = self._uniform_probabilities(nt_index)
-            return parent_table[depth]
+                context_table[depth] = self._uniform_probabilities(nt_index)
+            return context_table[depth]
         if context not in table:
             if not create:
                 return self._uniform_probabilities(nt_index)
@@ -403,10 +431,15 @@ class Grammar:
                 return grammar_counter
             nt = list(self.get_non_terminals())[symbol]
             number_productions = len(self.grammar[nt])
-            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
-                parent, context_depth = context
-                parent_table = grammar_counter[symbol].setdefault(parent, {})
-                counts = parent_table.setdefault(
+            if self.learning_strategy in {
+                LearningStrategy.CONTEXT_AWARE_DEPTH,
+                LearningStrategy.PREVIOUS_RULE_DEPTH,
+            }:
+                context_key, context_depth = context
+                context_table = grammar_counter[symbol].setdefault(
+                    context_key, {}
+                )
+                counts = context_table.setdefault(
                     context_depth, [0] * number_productions
                 )
             else:
@@ -511,7 +544,7 @@ class Grammar:
         output = []
         max_depth = self._recursive_mapping(
             probs, mapping_rules, positions_to_map, gram_counter,
-            self.start_rule, 0, output, None, previous_expansions, tree
+            self.start_rule, 0, output, [], previous_expansions, tree
         )
         if self.grammar_file.endswith("pybnf"):
             if needs_python_filter:
@@ -524,8 +557,10 @@ class Grammar:
 
     def _recursive_mapping(self, probs, mapping_rules, positions_to_map,
                            gram_counter, current_sym, current_depth, output,
-                           parent_symbol=None, previous_expansions=None,
+                           production_history=None, previous_expansions=None,
                            tree_node=None):
+        if production_history is None:
+            production_history = []
         depths = [current_depth]
         if current_sym[1] == self.T:
             output.append(current_sym[0])
@@ -539,11 +574,16 @@ class Grammar:
                     self.levels_up, self.levels_down
                 )
             elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE:
-                context = parent_symbol or self.ROOT_CONTEXT
+                context = self._context_history_key(production_history)
             elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
-                context = (parent_symbol or self.ROOT_CONTEXT, current_depth)
-            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+                context = (
+                    self._context_history_key(production_history),
+                    current_depth,
+                )
+            elif self.learning_strategy == LearningStrategy.PREVIOUS_RULE:
                 context = previous_expansions[nt_index]
+            elif self.learning_strategy == LearningStrategy.PREVIOUS_RULE_DEPTH:
+                context = (previous_expansions[nt_index], current_depth)
             else:
                 context = None
 
@@ -618,12 +658,21 @@ class Grammar:
                 current_depth, context
             )
 
-            if self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+            if self.learning_strategy in {
+                LearningStrategy.PREVIOUS_RULE,
+                LearningStrategy.PREVIOUS_RULE_DEPTH,
+            }:
                 previous_expansions[nt_index] = expansion_possibility
 
             current_production = expansion_possibility
             positions_to_map[current_sym_pos] += 1
             next_to_expand = choices_expand[current_production]
+            child_production_history = (
+                list(production_history)
+                + [self._production_context_key(
+                    current_sym_pos, current_production
+                )]
+            )
             if self.learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
                 tree_node.children_index(current_production)
                 child_nodes = [
@@ -637,7 +686,8 @@ class Grammar:
                         self._recursive_mapping(
                             probs, mapping_rules, positions_to_map,
                             gram_counter, child.symbol, current_depth + 1,
-                            output, current_sym[0], previous_expansions, child
+                            output, child_production_history,
+                            previous_expansions, child
                         ))
             else:
                 for next_sym in next_to_expand:
@@ -645,7 +695,7 @@ class Grammar:
                         self._recursive_mapping(
                             probs, mapping_rules, positions_to_map,
                             gram_counter, next_sym, current_depth + 1, output,
-                            current_sym[0], previous_expansions
+                            child_production_history, previous_expansions
                         ))
         return max(depths)
 
@@ -829,7 +879,19 @@ class Grammar:
                     }
                     for table in converted
                 ]
-            elif self.learning_strategy == LearningStrategy.CONTEXT_AWARE_PREVIOUS:
+            elif self.learning_strategy == LearningStrategy.PREVIOUS_RULE_DEPTH:
+                converted = [
+                    {
+                        (key if key == self.PREVIOUS_START_CONTEXT else int(key)):
+                        {
+                            int(depth): probabilities
+                            for depth, probabilities in depth_table.items()
+                        }
+                        for key, depth_table in table.items()
+                    }
+                    for table in converted
+                ]
+            elif self.learning_strategy == LearningStrategy.PREVIOUS_RULE:
                 converted = [
                     {
                         (key if key == self.PREVIOUS_START_CONTEXT else int(key)):

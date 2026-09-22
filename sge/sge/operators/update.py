@@ -24,7 +24,8 @@ def update_distributions(learning_strategy, population, lf, n_best):
     elif learning_strategy in {
         LearningStrategy.CONTEXT_AWARE,
         LearningStrategy.CONTEXT_AWARE_DEPTH,
-        LearningStrategy.CONTEXT_AWARE_PREVIOUS,
+        LearningStrategy.PREVIOUS_RULE,
+        LearningStrategy.PREVIOUS_RULE_DEPTH,
     }:
         print("CONTEXT_AWARE UPDATE")
         context_aware_update(learning_strategy, population, lf, n_best)
@@ -162,15 +163,18 @@ def depth_based_update(population, lf, n_best):
 
 '''
     CONTEXT_AWARE UPDATE
-    1. Get the count of how many times each production rule was used in the best individuals, at each depth level and for each parent non-terminal.
-    2. For each production rule, if it was used, increase or decrease its probability, but only for the depth level and parent non-terminal where it was used.
+    1. Get the count of how many times each production rule was used in the best individuals for each sparse context.
+    2. For each production rule, if it was used, increase or decrease its probability, but only for the context where it was used.
 '''
 
 def _iter_context_counts(strategy, nt_counter):
-    if strategy == LearningStrategy.CONTEXT_AWARE_DEPTH:
-        for parent, depth_table in nt_counter.items():
+    if strategy in {
+        LearningStrategy.CONTEXT_AWARE_DEPTH,
+        LearningStrategy.PREVIOUS_RULE_DEPTH,
+    }:
+        for context_key, depth_table in nt_counter.items():
             for depth, counts in depth_table.items():
-                yield (parent, depth), counts
+                yield (context_key, depth), counts
     else:
         yield from nt_counter.items()
 
@@ -252,7 +256,7 @@ def context_aware_update(strategy, population, lf, n_best):
             if total_count <= 0 or len(counts) <= 1:
                 continue
             probabilities = grammar.get_context_probabilities(
-                gram, nt_index, context
+                gram, nt_index, context, create=True
             )
             if len(probabilities) != len(counts):
                 raise ValueError(
