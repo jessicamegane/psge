@@ -65,32 +65,37 @@ python3 -m examples.symreg --grammar grammars/regression.pybnf --parameters para
 
 ### Command Line Arguments
 
-| Argument | Type | Description |
-| --- | --- | --- |
-| --parameters | str | YAML parameters file (must include extension) | 
-| --grammar | str | Path to grammar file (required) |
-| --popsize | int | Population size |
-| --generations | int | Number of generations |
-| --elitism | int | Number of individuals to survive each generation |
-| --prob_crossover | float | Crossover probability (0.0-1.0) |
-| --prob_mutation | float | Mutation probability (0.0-1.0) |
-| --tsize | int | Tournament size for parent selection |
-| --min_tree_depth | int | Initial tree depth |
-| --max_tree_depth | int | Maximum tree depth |
-| --learning_factor | float | Probability update learning factor ((0.0-1.0)) |
-| --n_best | int | Number of individuals for the updating mechanism |
-| --adaptive_lf | bool | Enable adaptive learning factor |
-| --adaptive_increment | float | Learning factor increment per generation |
-| --remap | bool | Remap elites each iteration |
-| --adaptive_mutation | bool | Use Adaptive Facilitated Mutation (AFM) |
-| --prob_mutation_probs | float | AFM mutation probability (requires `--adaptive_mutation`) |
-| --gauss_sd | float | AFM Gaussian standard deviation (requires `--adaptive_mutation`) |
-| --experiment_name | str | Output folder name for statistics |
-| --run | int | Run number (for tracking) |
-| --seed | int | Random seed |
-| --include_genotype | bool | Save genotype in log files |
-| --save_step | int | Statistics save frequency |
-| --verbose | bool | Verbose output |
+| argument | type | description |
+| --------------- | ----------- | ------------ |
+| --parameters | str | Specifies the parameters file to be used. Must include the full file extension. | 
+| --popsize | int | Specifies the population size. |
+| --generations | int | Specifies the total number of generations.
+| --elitism | int | Specifies the total number of individuals that should survive in each generation. |
+| --prob_crossover | float | Specifies the probability of crossover usage. Float required. |
+| --prob_mutation | float | Specifies the probability of mutation usage. Float required. |
+| --tsize | int | Specifies the tournament size for parent selection. |
+| --min_tree_depth | int | Specifies the initialisation tree depth. |
+| --max_tree_depth | int | Specifies the maximum tree depth. |
+| --grammar | str | specifies the path to the grammar file. |
+| --learning_factor | float | Specifies the value of the learning factor used to update the probabilities. |
+| --adaptive_lf | bool | Specifies if it is supposed to run the adaptive version of PSGE, in which the learning factor updated based on the ADAPTIVE_INCREMENT defined. |
+| --adaptive_increment | float | Specifies the value used to add to the learning factor each generation. |
+| --remap | bool | Specifies if the elitists are remapped each iteration. |
+| --adaptive_mutation | bool | Specifies if we want to use the traditional mutation or the Adaptive Facilitated Mutation. |
+| --prob_mutation_probs | float | Specifies the probability of occurring a mutation in the prob mutation. Option only if --adaptive_mutation is set to true. |
+| --gauss_sd | float | Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true. |
+| --search_strategy | str | Specifies the search strategy: standard, eda, hybrid. |
+| --algorithm_method | str | Specifies the base algorithm: psge, copsge, sgef, psge_copsge. |
+| --learning_strategy | str | Specifies the learning strategy: independent, depth_based, subtree_dependent, context_aware, context_aware_depth, previous_rule, previous_rule_depth, or none. |
+| --genotype_distribution | str | Specifies the distribution for generating the initial genotype: uniform, normal, cma_es, vae. |
+| --gauss_sd | float | Specifies the value of the standard deviation used in the generation of a number with a normal distribution. Option only if --adaptive_mutation is set to true. 
+| --experiment_name | str | Specifies the name of the folder where stats are going to be stored. |
+| --run | int | Specifies the run number. |
+| --seed | float | Specifies the seed to be used by the random number generator. |
+| --include_genotype | bool | Specifies if the genotype is to be included in the log files |
+| --save_step | int | Specifies how often stats are saved. |
+| --verbose | bool | Turns on the verbose output of the program. |
+| --resume | str | Resumes an interrupted run from a run folder or a specific checkpoint file. |
 
 **Note:** Override parameter file settings by adding arguments to the command line. For example:
 
@@ -103,6 +108,47 @@ For full parameter documentation:
 ```bash
 python3 -m examples.symreg --help
 ```
+
+
+### Checkpoints and recovery
+
+The main evolutionary algorithm writes a complete recovery checkpoint after every
+generation. A checkpoint includes the full population, learned grammar and genotype
+distributions, resolved parameters and seed, best individuals, and random-generator
+states. Only the two newest checkpoints are retained. After a run finishes normally,
+the checkpoint files are removed; all normal experiment logs remain available.
+
+To continue an interrupted experiment, run the same example and problem arguments and
+pass the interrupted run folder:
+
+```
+python3 -m examples.symreg --resume dumps/Test/1.0/run_1_123456789
+```
+
+The newest valid checkpoint is selected automatically. If it is incomplete or corrupt,
+the previous checkpoint is used. A specific checkpoint file can also be supplied.
+Recovery never modifies or deletes existing logs. Continued output is written under the
+run's `recovery_logs/` directory, and `recovery_manifest.json` records which log segments
+form the canonical run history.
+
+Programmatic recovery is also available:
+
+```python
+import sge
+
+sge.resume_evolutionary_algorithm(
+    evaluation_function=eval_func,
+    resume_from="dumps/Test/1.0/run_1_123456789",
+)
+```
+
+Use `sge.get_canonical_log_segments(run_folder)` to resolve the original and recovery
+log directories and their valid generation ranges, or
+`sge.read_canonical_progress(run_folder)` to read the canonical progress rows. Since
+checkpoints use Python serialization, only load checkpoint files produced locally by a
+trusted experiment. Exact recovery also requires unchanged code, grammar, input data,
+and evaluator behavior.
+
 
 ## Mutation Strategies
 

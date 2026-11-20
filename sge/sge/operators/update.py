@@ -1,8 +1,40 @@
 import sge.grammar as grammar
 import copy
 import numpy as np
+from sge.parameters import LearningStrategy
 
+'''
+    MAIN UPDATE FUNCTION
+'''
 
+def update_distributions(learning_strategy, population, lf, n_best):
+    if n_best <= 0:
+        raise ValueError("n_best must be greater than zero")
+    if not population:
+        raise ValueError("population must not be empty")
+    if learning_strategy == LearningStrategy.INDEPENDENT:
+        print("PSGE UPDATE")
+        independent_update(population, lf, n_best)
+    elif learning_strategy == LearningStrategy.DEPTH_BASED:
+        print("DEPTH_BASED UPDATE")
+        depth_based_update(population, lf, n_best)
+    elif learning_strategy == LearningStrategy.SUBTREE_DEPENDENT:
+        print("SUBTREE_DEPENDENT UPDATE")
+        subtree_dependent_update(population, lf, n_best)
+    elif learning_strategy in {
+        LearningStrategy.CONTEXT_AWARE,
+        LearningStrategy.CONTEXT_AWARE_DEPTH,
+        LearningStrategy.PREVIOUS_RULE,
+        LearningStrategy.PREVIOUS_RULE_DEPTH,
+    }:
+        print("CONTEXT_AWARE UPDATE")
+        context_aware_update(learning_strategy, population, lf, n_best)
+    
+'''
+    INDEPENDENT UPDATE
+    1. Get the count of how many times each production rule was used in the best individuals.
+    2. For each production rule, if it was used, increase or decreaseits probability 
+'''
 def get_grammar_counter(individuals):
     counters = [ind['grammar_counter'] for ind in individuals]
     return [list(map(int, np.sum([c[i] for c in counters], axis=0)))
@@ -32,4 +64,279 @@ def independent_update(individuals, lf, n_best):
             elif counter == 0:
                 gram[i][j] = max(old_prob - lf * old_prob, 0.0)
 
-        gram[i,:] = np.clip(gram[i,:], 0, np.inf) / np.sum(np.clip(gram[i,:], 0, np.inf))
+        masked_indices = mask[i,:]
+        gram[i, masked_indices] = np.clip(gram[i, masked_indices], 0, np.inf)
+        gram[i, masked_indices] /= np.sum(gram[i, masked_indices])
+
+'''
+    DEPTH-BASED UPDATE
+    1. Get the count of how many times each production rule was used in the best individuals, at each depth level.
+    2. For each production rule, if it was used, increase or decrease its probability, but only for the depth level where it was used.
+'''
+
+def get_counter_individual_expansions(individuals):
+    """Aggregate depth-based production counts across several individuals.
+
+    An individual only records depths at which it expanded a given
+    non-terminal.  Consequently, different individuals need not have the same
+    depth keys.  Missing entries represent zero uses, rather than an error.
+    """
+    counters = [ind['grammar_counter'] for ind in individuals]
+    aggregated = []
+
+    for nt_i in range(len(grammar.get_non_terminals())):
+        depths = set()
+        for counter in counters:
+            depths.update(counter[nt_i].keys())
+
+        depth_counts = {}
+        for depth in depths:
+            observed = [counter[nt_i][depth]
+                        for counter in counters
+                        if depth in counter[nt_i]]
+            depth_counts[depth] = list(map(int, np.sum(observed, axis=0)))
+        aggregated.append(depth_counts)
+
+    return aggregated
+
+
+
+def depth_based_update(population, lf, n_best):
+    gram = grammar.get_pcfg()
+    nt_rows, depth_columns = gram.shape
+    counter = get_counter_individual_expansions(population[:n_best])
+    # print("counter\n",counter)
+    # counter_bad = get_counter_individual_expansions(population[-n_best:])
+    # print("counter bad \n", counter_bad)
+    # input()
+    # print(gram)
+    # print(counter)
+    p_mutation = 0.01
+    amplitude_mutation = 0.05
+    for nt_i in range(nt_rows):
+        for depth_i in range(depth_columns):
+            flag = False
+            if len(gram[nt_i][depth_i]) <= 1:
+                continue
+            if counter[nt_i] != 0:
+                if depth_i in counter[nt_i]:
+                    if len(counter[nt_i][depth_i]) != len(gram[nt_i][depth_i]):
+                        print("something bad happened!")
+                        input()
+                    for prod_i in range(len(counter[nt_i][depth_i])):
+                        if counter[nt_i][depth_i][prod_i] > 0:
+                            flag=True
+                            # primeira versao
+                            gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] + counter[nt_i][depth_i][prod_i] * lf / sum(counter[nt_i][depth_i])
+                            # segunda versao e terceira
+                            # gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] * (1+lf)**counter[nt_i][depth_i][prod_i]
+            # if counter_bad[nt_i] != 0:
+            #     if depth_i in counter_bad[nt_i]:
+            #         if len(counter_bad[nt_i][depth_i]) != len(gram[nt_i][depth_i]):
+            #             print("something bad happened!")
+            #             input()
+            #         for prod_i in range(len(counter_bad[nt_i][depth_i])):
+            #             if counter_bad[nt_i][depth_i][prod_i] > 0:
+            #                 flag= True
+            #                 # terceira versao
+            #                 gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] / (1+lf)**counter_bad[nt_i][depth_i][prod_i]
+                        # else:
+                        # # segunda versao
+                        #     gram[nt_i][depth_i][prod_i] = gram[nt_i][depth_i][prod_i] - gram[nt_i][depth_i][prod_i] * lf
+                # mutation on the value "gauss_p_mutation"
+            for i_prod in range(len(gram[nt_i][depth_i])):
+                if np.random.uniform() < p_mutation:
+                    # segunda nova versao 2nd version caderno escrito
+                    # gram[nt_i][depth_i][i_prod] = np.random.normal(gram[nt_i][depth_i][i_prod],amplitude_mutation)
+                    # mutation "mut_0.001_"
+                    # terceira nova versao 3rd version caderno escrito
+                    if np.random.uniform() < 0.50:
+                        gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] / (1+lf)
+                    else:
+                        gram[nt_i][depth_i][i_prod] = gram[nt_i][depth_i][i_prod] * (1+lf)
+            gram[nt_i][depth_i] = np.clip(gram[nt_i][depth_i], 0, np.inf) / np.sum(np.clip(gram[nt_i][depth_i], 0, np.inf))
+            if round(np.sum(gram[nt_i][depth_i]),3) > 1:
+                print(gram[nt_i][depth_i])
+                print("error in clip")
+                input()
+
+
+'''
+    CONTEXT_AWARE UPDATE
+    1. Get the count of how many times each production rule was used in the best individuals for each sparse context.
+    2. For each production rule, if it was used, increase or decrease its probability, but only for the context where it was used.
+'''
+
+def _iter_context_counts(strategy, nt_counter):
+    if strategy in {
+        LearningStrategy.CONTEXT_AWARE_DEPTH,
+        LearningStrategy.PREVIOUS_RULE_DEPTH,
+    }:
+        for context_key, depth_table in nt_counter.items():
+            for depth, counts in depth_table.items():
+                yield (context_key, depth), counts
+    else:
+        yield from nt_counter.items()
+
+
+def get_context_counter(strategy, individuals):
+    """Aggregate sparse context counters over all selected individuals."""
+    aggregated = [{} for _ in grammar.get_non_terminals()]
+    for individual in individuals:
+        for nt_index, nt_counter in enumerate(individual['grammar_counter']):
+            for context, counts in _iter_context_counts(strategy, nt_counter):
+                if context not in aggregated[nt_index]:
+                    aggregated[nt_index][context] = [0] * len(counts)
+                if len(aggregated[nt_index][context]) != len(counts):
+                    raise ValueError(
+                        "Context counter length mismatch for non-terminal %d"
+                        % nt_index
+                    )
+                aggregated[nt_index][context] = [
+                    total + int(count)
+                    for total, count in zip(
+                        aggregated[nt_index][context], counts
+                    )
+                ]
+    return aggregated
+
+
+def subtree_dependent_update(population, lf, n_best):
+    """Update probability vectors keyed by elite subtree contexts.
+
+    Only hashes recorded by the selected best individuals are added to the
+    shared grammar. Each observed production is increased by ``count * lf``
+    before the context's vector is normalized. Unobserved productions are not
+    penalized.
+    """
+    selected = population[:min(n_best, len(population))]
+    counter = get_context_counter(
+        LearningStrategy.SUBTREE_DEPENDENT, selected
+    )
+    gram = grammar.get_pcfg()
+    for nt_index, context_table in enumerate(counter):
+        for context, counts in context_table.items():
+            # Mapping must not populate the shared grammar with every context
+            # seen in the population.  This update is the point at which a
+            # context from the selected elites becomes part of the grammar.
+            if not any(count > 0 for count in counts):
+                continue
+            probabilities = grammar.get_context_probabilities(
+                gram, nt_index, context, create=True
+            )
+            if len(probabilities) != len(counts):
+                raise ValueError(
+                    "Subtree counter length does not match grammar at "
+                    "non-terminal %d" % nt_index
+                )
+            updated = np.array(probabilities, dtype=float, copy=True)
+            for production_index, count in enumerate(counts):
+                if count <= 0:
+                    continue
+                updated[production_index] += count * lf
+            updated = np.clip(updated, 0, np.inf)
+            total = np.sum(updated)
+            if not np.isfinite(total) or total <= 0:
+                raise ValueError(
+                    "Cannot normalize subtree probabilities for "
+                    "non-terminal %d" % nt_index
+                )
+            probabilities[:] = updated / total
+
+
+def context_aware_update(strategy, population, lf, n_best):
+    """Update every observed sparse context from the top ``n_best`` elites."""
+    selected = population[:min(n_best, len(population))]
+    counter = get_context_counter(strategy, selected)
+    gram = grammar.get_pcfg()
+
+    for nt_index, context_table in enumerate(counter):
+        for context, counts in context_table.items():
+            total_count = sum(counts)
+            if total_count <= 0 or len(counts) <= 1:
+                continue
+            probabilities = grammar.get_context_probabilities(
+                gram, nt_index, context, create=True
+            )
+            if len(probabilities) != len(counts):
+                raise ValueError(
+                    "Context counter length does not match grammar at "
+                    "non-terminal %d" % nt_index
+                )
+            updated = np.array(probabilities, dtype=float, copy=True)
+            for production_index, count in enumerate(counts):
+                if count > 0:
+                    updated[production_index] = min(
+                        updated[production_index] + lf * count / total_count,
+                        1.0,
+                    )
+                else:
+                    updated[production_index] = max(
+                        updated[production_index]
+                        - lf * updated[production_index],
+                        0.0,
+                    )
+            updated = np.clip(updated, 0, np.inf)
+            total = np.sum(updated)
+            if not np.isfinite(total) or total <= 0:
+                raise ValueError(
+                    "Cannot normalize context probabilities for non-terminal %d"
+                    % nt_index
+                )
+            probabilities[:] = updated / total
+
+
+'''
+    PROBABILITIES MUTATION
+    Approach based on the Co-PSGE algorithm
+    1. For each production rule, with a certain probability, mutate its probability using a normal distribution
+    2. Normalize the probabilities of the production rules for each non-terminal 
+'''
+
+# def grammar_mutation(ind, prob_mutation, gauss_std):
+#     print("COPSGE UPDATE")
+#     ind['fitness'] = None
+#     for idx_nt, nt_values in enumerate(ind['pcfg']):
+#         if len(nt_values)  <= 1:
+#             continue
+#         for prob_idx in range(len(nt_values)):
+#             if np.random.uniform() < prob_mutation:
+#                 gauss = np.random.normal(0.0, gauss_std)
+#                 diff = (gauss / (len(nt_values) - 1))
+#                 nt_values[prob_idx] += (gauss + diff)
+#                 nt_values -= diff
+#                 nt_values = np.clip(nt_values, 0, np.inf)
+#                 nt_values /= np.sum(np.clip(nt_values, 0, np.inf))
+#                 ind['pcfg'][idx_nt] = nt_values
+#                 break
+#     return ind
+
+def grammar_mutation(ind, prob_mutation, gauss_std):
+    ind['fitness'] = None
+    gram = ind['pcfg']
+    rows, _ = gram.shape
+    mask = copy.deepcopy(grammar.get_mask())
+    for i in range(rows):
+        valid_indices = np.flatnonzero(mask[i, :])
+        if len(valid_indices) <= 1:
+            continue
+
+        for j in valid_indices:
+            if np.random.uniform() < prob_mutation:
+                gauss = np.random.normal(0.0, gauss_std)
+                other_indices = valid_indices[valid_indices != j]
+                gram[i, j] += gauss
+                gram[i, other_indices] -= gauss / len(other_indices)
+                break
+
+        valid_probabilities = np.clip(gram[i, valid_indices], 0, np.inf)
+        total = np.sum(valid_probabilities)
+        if total <= 0 or not np.isfinite(total):
+            valid_probabilities = np.full(
+                len(valid_indices), 1.0 / len(valid_indices)
+            )
+        else:
+            valid_probabilities /= total
+        gram[i, valid_indices] = valid_probabilities
+        gram[i, ~mask[i, :]] = 0.0
+    return ind

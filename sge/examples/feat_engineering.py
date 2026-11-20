@@ -28,9 +28,8 @@ class FeatEng():
             self.target_column = "Column627"
         
         self.data = pd.read_csv(self.file, sep=';', encoding = 'utf-8').astype(np.float64)
-        self.X = self.data.drop(self.target_column, axis = 1)
-        self.y = self.data[self.target_column]
-
+        self.X = self.data.drop(self.target_column, axis=1).to_numpy()
+        self.y = self.data[self.target_column].to_numpy()
         self.train_set, self.test_set, self.y_train, self.y_test = train_test_split(self.X,self.y,
                                                                                 test_size=0.5)
 

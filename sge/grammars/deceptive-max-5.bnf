@@ -1,0 +1,3 @@
+# Deceptive Max: m = 5, terminals {lambda, 0.95}, prefix notation.
+<start> ::= <expr>
+<expr> ::= *<expr><expr><expr><expr><expr>|+<expr><expr><expr><expr><expr>|0.95|lambda
