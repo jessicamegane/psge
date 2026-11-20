@@ -1,288 +1,120 @@
+#!/usr/bin/env bash
 
-parallel_processes=16
-num_runs=30
+set -euo pipefail
 
-benchmarks=(
-    # pagiepolynomial
-    # nguyen4polynomial
-    nguyen5polynomial
-    # quarticpolynomial
-    # koza2polynomial
-    # koza3polynomial
+MAX_JOBS="${MAX_JOBS:-16}"
+NUM_RUNS="${NUM_RUNS:-30}"
+RESULTS_ROOT="${RESULTS_ROOT:-experiments_hybrid_1000_gen}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if ! command -v parallel >/dev/null 2>&1; then
+    echo "GNU Parallel is required but was not found in PATH." >&2
+    exit 1
+fi
+
+PARAMETERS_FILE="parameters/hybrid_psge_copsge_1000.yaml"
+MAX_DEPTHS=(10 15)
+SUBTREE_LEVELS_UP="${SUBTREE_LEVELS_UP:-1}"
+SUBTREE_LEVELS_DOWN="${SUBTREE_LEVELS_DOWN:-3}"
+
+# Format: name|algorithm method|search strategy|learning strategy|elitism
+CONFIGURATIONS=(
+    "hybrid_psge_copsge_standard|psge_copsge|standard|independent|100"
+    "psge_independent_eda|psge|eda|independent|1"
+    "psge_independent_standard|psge|standard|independent|100"
+    "psge_depth_based_eda|psge|eda|depth_based|1"
+    "psge_depth_based_standard|psge|standard|depth_based|100"
+    "psge_subtree_dependent_eda|psge|eda|subtree_dependent|1"
+    "psge_subtree_dependent_standard|psge|standard|subtree_dependent|100"
+    "psge_context_aware_eda|psge|eda|context_aware|1"
+    "psge_context_aware_standard|psge|standard|context_aware|100"
+    "psge_context_aware_depth_eda|psge|eda|context_aware_depth|1"
+    "psge_context_aware_depth_standard|psge|standard|context_aware_depth|100"
+    "psge_context_aware_previous_eda|psge|eda|context_aware_previous|1"
+    "psge_context_aware_previous_standard|psge|standard|context_aware_previous|100"
+    "copsge_standard|copsge|standard|none|100"
+    "sgef_eda|sgef|eda|none|1"
+    "sgef_standard|sgef|standard|none|100"
 )
 
-learning_factors=(0.01)
-n_best_values=(1)
-# elite_values=(1)
-# learning_factors=(0.01)
-# n_best_values=(100)
-# remap_values=(true false)
+# Format: result name|Python module|grammar|optional positional benchmark
+PROBLEMS=(
+    "quartic_polynomial|examples.symreg|grammars/regression_1var.pybnf|quarticpolynomial"
+    "boston_housing|examples.bostonhousing|grammars/bostonhousing.bnf|__NONE__"
+    "pagie_polynomial|examples.symreg|grammars/regression.pybnf|pagiepolynomial"
+    "nguyen5_polynomial|examples.symreg|grammars/regression_1var.pybnf|nguyen5polynomial"
+    "multiplexer_11|examples.multiplexer_11|grammars/mux11_grammar.txt|__NONE__"
+    "5parity|examples.parity_5|grammars/5_bit_parity_grammar.txt|__NONE__"
+    "bioav|examples.feat_engineering|grammars/feat_engineering_bioav.pybnf|__NONE__"
+    "royal_tree_d|examples.royal_tree|grammars/royal-tree-d.bnf|__NONE__|5|3"
+    "deceptive_max_d3|examples.deceptive_max|grammars/deceptive-max-5.bnf|__NONE__|4|2"
 
-for benchmark in "${benchmarks[@]}"; do
-    for learning_factor in "${learning_factors[@]}"; do
-        for n_best in "${n_best_values[@]}"; do
-            # for elite in "${elite_values[@]}"; do
+)
 
-            # first batch
-            seq "$num_runs" | parallel -j "$parallel_processes" \
-            python -m examples.symreg_pytorch "$benchmark" \
-                --grammar grammars/regression_torch.pybnf \
-                --parameters parameters/auto_params.yaml \
-                --n_best "$n_best" \
-                --remap "false" \
-                --learning_factor "$learning_factor" \
-                --elitism 50 \
-                --pop_size 500 \
-                --seed {} --run {} --experiment_name /media/storage/jessica/search_strategy/full_experiments_fix/standard_no_remap_nbest"$n_best"_elite_50_pop_500/"$benchmark"/ \
-                --search_strategy "standard"
-            
-            # grid batch
-            seq "$num_runs" | parallel -j "$parallel_processes" \
-            python -m examples.symreg_pytorch "$benchmark" \
-                --grammar grammars/regression_torch.pybnf \
-                --parameters parameters/auto_params.yaml \
-                --n_best "$n_best" \
-                --remap "false" \
-                --learning_factor "$learning_factor" \
-                --elitism 50 \
-                --pop_size 500 \
-                --seed {} --run {} --experiment_name /media/storage/jessica/search_strategy/full_experiments_fix/eda_no_remap_nbest"$n_best"_elite_50_pop_500/"$benchmark"/ \
-                --search_strategy "eda"
+run_one() {
+    local module="$1"
+    local grammar="$2"
+    local benchmark="$3"
+    local configuration="$4"
+    local algorithm_method="$5"
+    local search_strategy="$6"
+    local learning_strategy="$7"
+    local elitism="$8"
+    local problem="$9"
+    local max_depth="${10}"
+    local seed="${11}"
 
+    local command=(python -m "$module")
+    if [[ "$benchmark" != "__NONE__" ]]; then
+        command+=("$benchmark")
+    fi
+    command+=(
+        --parameters "$PARAMETERS_FILE"
+        --grammar "$grammar"
+        --seed "$seed"
+        --run "$seed"
+        --algorithm_method "$algorithm_method"
+        --search_strategy "$search_strategy"
+        --learning_strategy "$learning_strategy"
+        --elitism "$elitism"
+        --max_tree_depth "$max_depth"
+        --levels_up "$SUBTREE_LEVELS_UP"
+        --levels_down "$SUBTREE_LEVELS_DOWN"
+        --n_best 1
+        --experiment_name "$RESULTS_ROOT/$configuration/depth_$max_depth/$problem"
+    )
+    "${command[@]}"
+}
 
-            # first batch
-            seq "$num_runs" | parallel -j "$parallel_processes" \
-            python -m examples.symreg_pytorch "$benchmark" \
-                --grammar grammars/regression_torch.pybnf \
-                --parameters parameters/auto_params.yaml \
-                --n_best "$n_best" \
-                --remap "false" \
-                --learning_factor "$learning_factor" \
-                --elitism 100 \
-                --max_tree_depth 15 \
-                --seed {} --run {} --experiment_name /media/storage/jessica/search_strategy/full_experiments_fix/standard_no_remap_nbest"$n_best"_elite_100_pop_1000_depth_15/"$benchmark"/ \
-                --search_strategy "standard"
+export -f run_one
+export PARAMETERS_FILE RESULTS_ROOT SUBTREE_LEVELS_UP SUBTREE_LEVELS_DOWN
 
-            # grid batch
-            seq "$num_runs" | parallel -j "$parallel_processes" \
-            python -m examples.symreg_pytorch "$benchmark" \
-                --grammar grammars/regression_torch.pybnf \
-                --parameters parameters/auto_params.yaml \
-                --n_best "$n_best" \
-                --remap "false" \
-                --learning_factor "$learning_factor" \
-                --elitism 100 \
-                --max_tree_depth 15 \
-                --seed {} --run {} --experiment_name /media/storage/jessica/search_strategy/full_experiments_fix/eda_no_remap_nbest"$n_best"_elite_100_pop_1000_depth_15/"$benchmark"/ \
-                --search_strategy "eda"
-        
-            # done
+for problem_spec in "${PROBLEMS[@]}"; do
+    IFS='|' read -r problem module grammar benchmark <<< "$problem_spec"
 
+    for configuration_spec in "${CONFIGURATIONS[@]}"; do
+        IFS='|' read -r configuration algorithm_method search_strategy \
+            learning_strategy elitism <<< "$configuration_spec"
+
+        for max_depth in "${MAX_DEPTHS[@]}"; do
+            echo "Running $configuration on $problem at depth $max_depth ($NUM_RUNS runs)"
+            seq 1 "$NUM_RUNS" | parallel \
+                --jobs "$MAX_JOBS" \
+                --halt soon,fail=1 \
+                run_one \
+                "$module" \
+                "$grammar" \
+                "$benchmark" \
+                "$configuration" \
+                "$algorithm_method" \
+                "$search_strategy" \
+                "$learning_strategy" \
+                "$elitism" \
+                "$problem" \
+                "$max_depth" \
+                {}
         done
-
     done
-
 done
-
-
-
-# # Set the number of parallel processes you want to run
-# parallel_processes=16  # Adjust this based on your system's capacity
-
-# num_runs=30
-
-# benchmarks=(
-#     nguyen4polynomial
-#     nguyen5polynomial
-#     pagiepolynomial
-#     quarticpolynomial
-#     koza2polynomial
-#     koza3polynomial
-# )
-
-# learning_factors=(0.01 0.05)
-
-# n_best_values=(1 100 250 500)
-
-
-# for benchmark in "${benchmarks[@]}"; do
-#     seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch '"$benchmark"' --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.01 --probs_update "standard" --search_strategy "standard" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/standard/'"$benchmark"'/"" --run $i'
-#     for learning_factor in "${learning_factors[@]}"; do
-#         for n_best in "${n_best_values[@]}"; do
-#             seq $num_runs | parallel -j $parallel_processes '
-#             i={}
-#             python -m examples.symreg_pytorch '"$benchmark"' --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best '"$n_best"' --learning_factor '"$learning_factor"' --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest'"$n_best"'/'"$benchmark"'/"" --run $i'
-
-#         done
-#     done
-
-# done
-
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.01 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results/standard_alternate_bests/quartic/" --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.01 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results_better_map/standard/quartic/" --run $i'
-
-
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.01 --probs_update "standard" --search_strategy "standard" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/standard/nguyen4/" --run $i'
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.01 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest1_elitism/nguyen4/" --run $i'
-
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 100 --learning_factor 0.01 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest100/nguyen4/" --run $i'
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.01 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest500/nguyen4/" --run $i'
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 1 --learning_factor 0.05 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest1_elitism/nguyen4/" --run $i'
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 100 --learning_factor 0.05 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest100/nguyen4/" --run $i'
-
-# seq $num_runs | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch nguyen4polynomial --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.05 --probs_update "standard" --search_strategy "eda" --experiment_name "/media/storage/jessica/search_strategy/full_experiments/eda_remap_nbest500/nguyen4/" --run $i'
-
-
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.01 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results/eda_elitism_remap_update_500_best/5parity/" --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.05 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results/eda_elitism_remap_update_500_best/5parity/" --run $i'
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.01 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results/eda_elitism_remap_update_500_best/quartic/" --run $i'
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --n_best 500 --learning_factor 0.05 --probs_update "standard" --experiment_name "/media/storage/jessica/search_strategy/results/eda_elitism_remap_update_500_best/quartic/" --run $i'
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 128 --train_interval 50 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/5parity/independent/genotype_init_0/probs_sum_mu_best_softmax/Nadam_CosineAnn/" --run $i'
-
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 64 --train_interval 25 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best_softmax/Nadam/" --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 64 --train_interval 50 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best_softmax/Nadam/" --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 128 --train_interval 25 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best_softmax/Nadam/" --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 128 --train_interval 50 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best_softmax/Nadam/" --run $i'
-
-
-
-# seq 15 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 128 --train_interval 25 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best/" --run $i'
-
-
-# seq 15 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --epochs 100 --batch_size 128 --train_interval 50 --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/pagie/independent/probs_sum_mu_best/" --run $i'
-
-
-
-# parallel_processes=10
-
-# seq 15 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --probs_update "standard" --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/5parity/independent/standard_train/" --run $i --save_step 100 --generations 101'
-
-
-
-# seq 15 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --probs_update "autoPSGE" --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/autopsge/5parity/independent/train25_probs_mu_best_softmax/" --run $i'
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg_pytorch --grammar grammars/regression_torch.pybnf --parameters parameters/auto_params.yaml --seed $i --probs_update "standard" --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/standard/pagie/" --run $i'
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/auto_params.yaml --seed $i --probs_update "standard" --experiment_name "/media/cdv/nvme980pro/jessica/vae_experiments/standard/5parity/" --run $i'
-
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.symreg --grammar grammars/regression.pybnf --parameters parameters/pagie_dependency.yml --seed $i --probs_update "common_subtree" --experiment_name "common_subtree/pagie/dependent_force_best_different_worst_different/" --learning_factor 0.01 --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.multiplexer_11 --grammar grammars/mux11_grammar.txt --parameters parameters/pagie_dependency.yml --seed $i --probs_update "common_subtree" --experiment_name "common_subtree/11multiplexer/previous_rule_only/" --learning_factor 0.01 --run $i'
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.multiplexer_11 --grammar grammars/mux11_grammar.txt --parameters parameters/pagie_dependency.yml --seed $i --probs_update "standard" --experiment_name "standard/11multiplexer/" --learning_factor 0.01 --run $i'
-
-
-
-
-# seq 30 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.parity_5 --grammar grammars/5_bit_parity_grammar.txt --parameters parameters/pagie_dependency.yml --seed $i --probs_update "common_subtree" --experiment_name "common_subtree/5parity/dependent_force_best_different_worst_different/1error/" --learning_factor 0.01 --run $i'
-
-
-
-# seq 50 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "standard" --experiment_name "standard/progsys/Mirror-Image/" --learning_factor 0.01 --run $i'
-
-# seq 50 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "subtree_dependent" --experiment_name "subtree_dependent/progsys/Mirror-Image/nbest_5/up_2/down_3/" --learning_factor 0.001 --run $i --n_best 5 --levels_up 2 --levels_down 3'
-
-# seq 50 | parallel -j $parallel_processes  '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "subtree_dependent" --experiment_name "subtree_dependent/progsys/Mirror-Image/nbest_5/up_2/down_4/" --learning_factor 0.001 --run $i --n_best 5 --levels_up 2 --levels_down 4'
-
-# seq 50 | parallel -j $parallel_processes '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "subtree_dependent" --experiment_name "subtree_dependent/progsys/Mirror-Image/nbest_5/up_2/down_5/" --learning_factor 0.001 --run $i --n_best 5 --levels_up 2 --levels_down 5'
-
-# seq 50 | parallel -j $parallel_processes  '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "subtree_dependent" --experiment_name "subtree_dependent/progsys/Mirror-Image/nbest_5/up_2/down_6/" --learning_factor 0.001 --run $i --n_best 5 --levels_up 2 --levels_down 6'
-
-# seq 50 | parallel -j $parallel_processes  '
-#     i={}
-#     python -m examples.progsys_mirror_image --grammar grammars/progsys/Mirror\ Image.bnf --parameters parameters/params_progsys.yml --seed $i --probs_update "subtree_dependent" --experiment_name "subtree_dependent/progsys/Mirror-Image/nbest_5/up_2/down_7/" --learning_factor 0.001 --run $i --n_best 5 --levels_up 2 --levels_down 7'
