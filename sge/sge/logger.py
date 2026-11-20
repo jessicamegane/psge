@@ -14,12 +14,6 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, Enum):
             return obj.value
         return json.JSONEncoder.default(self, obj)
-    
-def calculate_unique_percentage(population_phenotypes):
-    unique_count = len(set(population_phenotypes))
-    total_count = len(population_phenotypes)
-    return (unique_count / total_count) * 100 if total_count > 0 else 0
-
 
 def _log_folder():
     return params.get('LOG_FOLDER', params['RUN_FOLDER'])
@@ -123,11 +117,6 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
     #     os.makedirs(folder,  exist_ok=True)
     # open('%s/generation_%d.json' % (folder,(generation)), 'w').write(json.dumps(to_save, cls=NumpyEncoder))
 
-    grammar_data = {"generation": generation, "grammar": gram}
-
-    with open('%s/run_%d/grammar_probabilities.json' % (params['EXPERIMENT_NAME'],params['RUN']), 'a') as f:
-        json.dump(grammar_data, f, cls=NumpyEncoder)
-        f.write(',\n')
 
 def save_progress_to_file(data):
     with open('%s/progress_report.csv' % (_log_folder()), 'a') as f:
