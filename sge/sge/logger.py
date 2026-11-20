@@ -1,15 +1,11 @@
-import gzip
+import time
+import numpy as np
+from enum import Enum
+from sge.parameters import params
 import json
 import os
 import tempfile
-import time
-from enum import Enum
 from pathlib import Path
-
-import numpy as np
-
-from sge.parameters import params
-
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -21,36 +17,11 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def _log_folder():
-    if 'LOG_FOLDER' in params:
-        return params['LOG_FOLDER']
-    return params['RUN_FOLDER']
+    return params.get('LOG_FOLDER', params['RUN_FOLDER'])
 
 
 def _phenotype_key(phenotype):
     return (phenotype,) if isinstance(phenotype, str) else tuple(phenotype)
-
-
-def should_save_grammar_snapshot(generation):
-    """Return whether this generation needs a full grammar snapshot."""
-    # save_step = int(params['SAVE_STEP'])
-    final_generation = params.get('GENERATIONS')
-    return (generation % 10 == 0 or
-            (final_generation is not None and
-             generation == int(final_generation)))
-
-
-def save_grammar_snapshot(generation, gram):
-    """Append one full grammar snapshot as a gzip-compressed JSONL record."""
-    grammar_data = {"generation": generation, "grammar": gram}
-    path = Path(_log_folder()) / 'grammar_probabilities.json.gz'
-    with gzip.open(path, mode='at', encoding='utf-8') as output:
-        json.dump(
-            grammar_data,
-            output,
-            cls=NumpyEncoder,
-            separators=(',', ':'),
-        )
-        output.write('\n')
 
 
 def calculate_unique_percentage(population_phenotypes, previous_population=None):
@@ -134,8 +105,11 @@ def evolution_progress(generation, pop, best, best_gen, gram, previous_populatio
     if generation % params['SAVE_STEP'] == 0:
         save_step(generation, pop)
 
-    if should_save_grammar_snapshot(generation):
-        save_grammar_snapshot(generation, gram)
+    grammar_data = {"generation": generation, "grammar": gram}
+
+    with open('%s/grammar_probabilities.json' % (_log_folder()), 'a') as f:
+        json.dump(grammar_data, f, cls=NumpyEncoder)
+        f.write(',\n')
 
     # to_save = []
     # to_save.append({"grammar": gram})
